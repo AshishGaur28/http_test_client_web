@@ -15,6 +15,40 @@
         </header>
 
         <div class="main-content">
+            <!-- Global Settings Panel -->
+            <div class="section">
+                <h2>⚙️ Global Settings</h2>
+                <div class="global-settings-grid">
+                    <div class="form-group">
+                        <label for="globalBaseUrl">Base URL:</label>
+                        <input type="url" id="globalBaseUrl" placeholder="https://api.example.com">
+                        <small class="help-text">Optional base URL for relative paths</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="globalTimeout">Default Timeout (ms):</label>
+                        <input type="number" id="globalTimeout" placeholder="5000" min="1000" max="60000">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="globalExpectedStatus">Default Expected Status:</label>
+                        <input type="number" id="globalExpectedStatus" placeholder="200" min="100" max="599">
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="globalHeaders">Default Headers (JSON format):</label>
+                        <textarea id="globalHeaders" rows="3" placeholder='{"Content-Type": "application/json", "Authorization": "Bearer token"}'></textarea>
+                        <small class="help-text">These headers will be merged with test-specific headers</small>
+                    </div>
+                </div>
+                
+                <div class="global-settings-controls">
+                    <button id="saveGlobalSettings" class="btn btn-primary">💾 Save Global Settings</button>
+                    <button id="resetGlobalSettings" class="btn btn-secondary">🔄 Reset to Defaults</button>
+                    <button id="clearGlobalSettings" class="btn btn-secondary">🗑️ Clear All</button>
+                </div>
+            </div>
+
             <!-- Test Case Management Section -->
             <div class="section">
                 <h2>Test Case Management</h2>

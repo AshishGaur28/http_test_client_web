@@ -2,12 +2,24 @@ class HTTPTestClient {
     constructor() {
         this.testCases = [];
         this.testResults = [];
+        this.globalSettings = this.getDefaultGlobalSettings();
         this.init();
+    }
+
+    getDefaultGlobalSettings() {
+        return {
+            baseUrl: '',
+            timeout: 5000,
+            expectedStatus: 200,
+            headers: {}
+        };
     }
 
     init() {
         this.bindEvents();
         this.loadFromLocalStorage();
+        this.loadGlobalSettingsFromStorage();
+        this.updateGlobalSettingsDisplay();
         this.updateDisplay();
     }
 
@@ -24,6 +36,11 @@ class HTTPTestClient {
         // Clear functions
         document.getElementById('clearTests').addEventListener('click', () => this.clearAllTests());
         document.getElementById('clearResults').addEventListener('click', () => this.clearResults());
+
+        // Global settings controls
+        document.getElementById('saveGlobalSettings').addEventListener('click', () => this.saveGlobalSettings());
+        document.getElementById('resetGlobalSettings').addEventListener('click', () => this.resetGlobalSettings());
+        document.getElementById('clearGlobalSettings').addEventListener('click', () => this.clearGlobalSettings());
 
         // Form validation on input
         document.getElementById('testUrl').addEventListener('input', this.validateForm);
@@ -112,8 +129,8 @@ class HTTPTestClient {
             url: document.getElementById('testUrl').value.trim(),
             headers: this.parseJSON(document.getElementById('testHeaders').value) || {},
             body: document.getElementById('testBody').value.trim() || null,
-            expectedStatus: parseInt(document.getElementById('expectedStatus').value) || 200,
-            timeout: parseInt(document.getElementById('timeout').value) || 5000,
+            expectedStatus: parseInt(document.getElementById('expectedStatus').value) || null,
+            timeout: parseInt(document.getElementById('timeout').value) || null,
             source: 'manual'
         };
 
@@ -122,14 +139,17 @@ class HTTPTestClient {
             return;
         }
 
+        // Merge with global settings
+        const mergedTestCase = this.mergeWithGlobalSettings(testCase);
+
         try {
-            new URL(testCase.url); // Validate URL
+            new URL(mergedTestCase.url); // Validate the final URL
         } catch {
-            this.showNotification('Please provide a valid URL', 'error');
+            this.showNotification('Please provide a valid URL or check your global base URL settings', 'error');
             return;
         }
 
-        this.testCases.push(testCase);
+        this.testCases.push(mergedTestCase);
         this.clearForm();
         this.updateDisplay();
         this.saveToLocalStorage();
@@ -495,6 +515,108 @@ class HTTPTestClient {
         const addButton = document.getElementById('addTestCase');
         
         addButton.disabled = !name || !url;
+    }
+
+    // Global Settings Methods
+    saveGlobalSettings() {
+        const baseUrl = document.getElementById('globalBaseUrl').value.trim();
+        const timeout = parseInt(document.getElementById('globalTimeout').value);
+        const expectedStatus = parseInt(document.getElementById('globalExpectedStatus').value);
+        const headersText = document.getElementById('globalHeaders').value.trim();
+        
+        let headers = {};
+        if (headersText) {
+            headers = this.parseJSON(headersText);
+            if (!headers) {
+                this.showNotification('Invalid JSON format in global headers', 'error');
+                return;
+            }
+        }
+
+        this.globalSettings = {
+            baseUrl: baseUrl,
+            timeout: timeout || 5000,
+            expectedStatus: expectedStatus || 200,
+            headers: headers
+        };
+
+        this.saveGlobalSettingsToStorage();
+        this.showNotification('Global settings saved successfully', 'success');
+    }
+
+    resetGlobalSettings() {
+        this.globalSettings = this.getDefaultGlobalSettings();
+        this.updateGlobalSettingsDisplay();
+        this.saveGlobalSettingsToStorage();
+        this.showNotification('Global settings reset to defaults', 'info');
+    }
+
+    clearGlobalSettings() {
+        this.globalSettings = {
+            baseUrl: '',
+            timeout: 0,
+            expectedStatus: 0,
+            headers: {}
+        };
+        this.updateGlobalSettingsDisplay();
+        this.saveGlobalSettingsToStorage();
+        this.showNotification('Global settings cleared', 'info');
+    }
+
+    updateGlobalSettingsDisplay() {
+        document.getElementById('globalBaseUrl').value = this.globalSettings.baseUrl || '';
+        document.getElementById('globalTimeout').value = this.globalSettings.timeout || '';
+        document.getElementById('globalExpectedStatus').value = this.globalSettings.expectedStatus || '';
+        document.getElementById('globalHeaders').value = this.globalSettings.headers && Object.keys(this.globalSettings.headers).length > 0 
+            ? JSON.stringify(this.globalSettings.headers, null, 2) 
+            : '';
+    }
+
+    saveGlobalSettingsToStorage() {
+        try {
+            localStorage.setItem('httpTestClient_globalSettings', JSON.stringify(this.globalSettings));
+        } catch (error) {
+            console.error('Error saving global settings to localStorage:', error);
+        }
+    }
+
+    loadGlobalSettingsFromStorage() {
+        try {
+            const saved = localStorage.getItem('httpTestClient_globalSettings');
+            if (saved) {
+                this.globalSettings = { ...this.getDefaultGlobalSettings(), ...JSON.parse(saved) };
+            }
+        } catch (error) {
+            console.error('Error loading global settings from localStorage:', error);
+            this.globalSettings = this.getDefaultGlobalSettings();
+        }
+    }
+
+    // Helper method to merge global settings with individual test case settings
+    mergeWithGlobalSettings(testCase) {
+        const merged = { ...testCase };
+
+        // Merge base URL if testCase URL is relative
+        if (this.globalSettings.baseUrl && merged.url && !merged.url.startsWith('http')) {
+            merged.url = this.globalSettings.baseUrl.replace(/\/$/, '') + '/' + merged.url.replace(/^\//, '');
+        }
+
+        // Use global timeout if not specified
+        if (!merged.timeout && this.globalSettings.timeout) {
+            merged.timeout = this.globalSettings.timeout;
+        }
+
+        // Use global expected status if not specified
+        if (!merged.expectedStatus && this.globalSettings.expectedStatus) {
+            merged.expectedStatus = this.globalSettings.expectedStatus;
+        }
+
+        // Merge headers - global headers first, then test-specific headers override
+        if (this.globalSettings.headers && Object.keys(this.globalSettings.headers).length > 0) {
+            merged.headers = { ...this.globalSettings.headers, ...merged.headers };
+        }
+
+        return merged;
     }
 }
 
