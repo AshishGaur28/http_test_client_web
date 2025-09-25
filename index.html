@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP Test Client</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>HTTP Test Client</h1>
+            <button id="toggle-config-btn" class="config-toggle-btn">⚙️ Configuration</button>
+        </header>
+
+        <!-- Global Configuration Panel -->
+        <div id="global-config-panel" class="config-panel hidden">
+            <h3>Global Configuration</h3>
+            <div class="config-grid">
+                <div class="config-item">
+                    <label for="global-base-url">Base URL:</label>
+                    <input type="url" id="global-base-url" placeholder="https://api.example.com">
+                </div>
+                <div class="config-item">
+                    <label for="global-timeout">Timeout (ms):</label>
+                    <input type="number" id="global-timeout" value="5000" min="1000" max="60000">
+                </div>
+                <div class="config-item">
+                    <label for="global-ssl">SSL Verification:</label>
+                    <select id="global-ssl">
+                        <option value="true">Enabled</option>
+                        <option value="false">Disabled</option>
+                    </select>
+                </div>
+                <div class="config-item">
+                    <label for="global-auth-type">Authentication:</label>
+                    <select id="global-auth-type">
+                        <option value="none">None</option>
+                        <option value="bearer">Bearer Token</option>
+                        <option value="basic">Basic Auth</option>
+                        <option value="api-key">API Key</option>
+                    </select>
+                </div>
+                <div class="config-item auth-details hidden" id="auth-bearer">
+                    <label for="global-bearer-token">Bearer Token:</label>
+                    <input type="password" id="global-bearer-token" placeholder="your-token-here">
+                </div>
+                <div class="config-item auth-details hidden" id="auth-basic">
+                    <label for="global-basic-username">Username:</label>
+                    <input type="text" id="global-basic-username" placeholder="username">
+                    <label for="global-basic-password">Password:</label>
+                    <input type="password" id="global-basic-password" placeholder="password">
+                </div>
+                <div class="config-item auth-details hidden" id="auth-api-key">
+                    <label for="global-api-key-name">Header Name:</label>
+                    <input type="text" id="global-api-key-name" placeholder="X-API-Key">
+                    <label for="global-api-key-value">API Key:</label>
+                    <input type="password" id="global-api-key-value" placeholder="your-api-key">
+                </div>
+                <div class="config-item full-width">
+                    <label for="global-headers">Default Headers (JSON):</label>
+                    <textarea id="global-headers" placeholder='{"Content-Type": "application/json"}'></textarea>
+                </div>
+            </div>
+            <div class="config-actions">
+                <button id="save-config-btn" class="btn-primary">Save Configuration</button>
+                <button id="reset-config-btn" class="btn-secondary">Reset to Defaults</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main>
+            <div class="toolbar">
+                <button id="add-test-btn" class="btn-primary">+ Add Test Case</button>
+                <button id="import-tests-btn" class="btn-secondary">📁 Import Tests</button>
+                <div class="search-container">
+                    <input type="text" id="search-input" placeholder="Search test cases..." class="search-input">
+                </div>
+            </div>
+
+            <!-- Test Cases Container -->
+            <div id="test-cases-container" class="test-cases-container">
+                <div id="loading-indicator" class="loading-indicator hidden">
+                    <div class="spinner"></div>
+                    <span>Loading test cases...</span>
+                </div>
+                <!-- Test case cards will be dynamically inserted here -->
+            </div>
+
+            <!-- Load More Button (fallback for infinite scroll) -->
+            <div id="load-more-container" class="load-more-container hidden">
+                <button id="load-more-btn" class="btn-secondary">Load More Test Cases</button>
+            </div>
+        </main>
+
+        <!-- Add/Edit Test Case Modal -->
+        <div id="test-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modal-title">Add Test Case</h3>
+                    <button id="close-modal-btn" class="close-btn">×</button>
+                </div>
+                <div class="modal-body">
+                    <form id="test-form">
+                        <div class="form-grid">
+                            <div class="form-item">
+                                <label for="test-name">Name:</label>
+                                <input type="text" id="test-name" required>
+                            </div>
+                            <div class="form-item">
+                                <label for="test-description">Description:</label>
+                                <input type="text" id="test-description">
+                            </div>
+                            <div class="form-item">
+                                <label for="test-method">Method:</label>
+                                <select id="test-method">
+                                    <option value="GET">GET</option>
+                                    <option value="POST">POST</option>
+                                    <option value="PUT">PUT</option>
+                                    <option value="DELETE">DELETE</option>
+                                    <option value="PATCH">PATCH</option>
+                                    <option value="HEAD">HEAD</option>
+                                    <option value="OPTIONS">OPTIONS</option>
+                                </select>
+                            </div>
+                            <div class="form-item">
+                                <label for="test-url">URL:</label>
+                                <input type="url" id="test-url" required>
+                            </div>
+                            <div class="form-item full-width">
+                                <label for="test-headers">Headers (JSON):</label>
+                                <textarea id="test-headers" placeholder='{"Content-Type": "application/json"}'></textarea>
+                            </div>
+                            <div class="form-item full-width">
+                                <label for="test-body">Request Body:</label>
+                                <textarea id="test-body" placeholder="Request body (for POST, PUT, PATCH)"></textarea>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">Save Test Case</button>
+                            <button type="button" id="cancel-modal-btn" class="btn-secondary">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
