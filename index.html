@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP API Test Client</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>HTTP API Test Client</h1>
+            <p class="subtitle">Load, manage, and execute HTTP API tests with global configuration and scalable loading</p>
+        </header>
+
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <button id="configBtn" class="btn btn-secondary">
+                    <span>⚙️</span> Global Config
+                </button>
+                <button id="addTestBtn" class="btn btn-primary">
+                    <span>➕</span> Add Test
+                </button>
+                <input type="file" id="fileInput" accept=".json" multiple style="display: none;">
+                <button id="importBtn" class="btn btn-secondary">
+                    <span>📁</span> Import JSON
+                </button>
+                <button id="exportBtn" class="btn btn-secondary">
+                    <span>💾</span> Export Tests
+                </button>
+            </div>
+            <div class="toolbar-right">
+                <input type="text" id="searchInput" placeholder="Search tests..." class="search-input">
+                <button id="runAllBtn" class="btn btn-success">
+                    <span>▶️</span> Run All
+                </button>
+                <button id="clearResultsBtn" class="btn btn-warning">
+                    <span>🧹</span> Clear Results
+                </button>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">Total Tests:</span>
+                <span id="totalTests" class="stat-value">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Displayed:</span>
+                <span id="displayedTests" class="stat-value">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Passed:</span>
+                <span id="passedTests" class="stat-value">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Failed:</span>
+                <span id="failedTests" class="stat-value">0</span>
+            </div>
+        </div>
+
+        <main class="main-content">
+            <div id="testCasesContainer" class="test-cases-container">
+                <!-- Test case cards will be dynamically inserted here -->
+            </div>
+            
+            <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                <div class="spinner"></div>
+                <p>Loading more test cases...</p>
+            </div>
+
+            <div id="loadMoreContainer" class="load-more-container" style="display: none;">
+                <button id="loadMoreBtn" class="btn btn-secondary">Load More Tests</button>
+            </div>
+
+            <div id="emptyState" class="empty-state">
+                <div class="empty-icon">📋</div>
+                <h3>No Test Cases</h3>
+                <p>Start by adding a test case or importing a JSON file</p>
+                <button id="emptyAddTestBtn" class="btn btn-primary">Add Your First Test</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Global Configuration Modal -->
+    <div id="configModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Global Configuration</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="configForm">
+                    <div class="form-group">
+                        <label for="baseUrl">Base URL:</label>
+                        <input type="url" id="baseUrl" placeholder="https://api.example.com" class="form-control">
+                        <small class="form-help">Default base URL for all API requests</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="timeout">Request Timeout (ms):</label>
+                        <input type="number" id="timeout" min="1000" max="60000" value="10000" class="form-control">
+                        <small class="form-help">Timeout for HTTP requests (1000-60000ms)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="sslVerify" checked>
+                            <span class="checkmark"></span>
+                            Enable SSL Verification
+                        </label>
+                        <small class="form-help">Verify SSL certificates for HTTPS requests</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="authType">Authentication Type:</label>
+                        <select id="authType" class="form-control">
+                            <option value="none">None</option>
+                            <option value="bearer">Bearer Token</option>
+                            <option value="basic">Basic Auth</option>
+                            <option value="apikey">API Key</option>
+                        </select>
+                    </div>
+                    
+                    <div id="authFields" class="auth-fields">
+                        <!-- Auth fields will be dynamically populated -->
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="commonHeaders">Common Headers (JSON):</label>
+                        <textarea id="commonHeaders" rows="4" class="form-control" placeholder='{"Content-Type": "application/json", "Accept": "application/json"}'></textarea>
+                        <small class="form-help">Headers applied to all requests (can be overridden per test)</small>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="resetConfigBtn">Reset to Defaults</button>
+                        <button type="submit" class="btn btn-primary">Save Configuration</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Test Modal -->
+    <div id="testModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="testModalTitle">Add New Test Case</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="testForm">
+                    <div class="form-group">
+                        <label for="testName">Test Name:</label>
+                        <input type="text" id="testName" required class="form-control" placeholder="e.g., Get User Profile">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="testDescription">Description:</label>
+                        <input type="text" id="testDescription" class="form-control" placeholder="Brief description of the test">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="testMethod">HTTP Method:</label>
+                            <select id="testMethod" class="form-control">
+                                <option value="GET">GET</option>
+                                <option value="POST">POST</option>
+                                <option value="PUT">PUT</option>
+                                <option value="DELETE">DELETE</option>
+                                <option value="PATCH">PATCH</option>
+                                <option value="HEAD">HEAD</option>
+                                <option value="OPTIONS">OPTIONS</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="testUrl">URL/Endpoint:</label>
+                            <input type="text" id="testUrl" required class="form-control" placeholder="/api/users/123">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="testHeaders">Headers (JSON):</label>
+                        <textarea id="testHeaders" rows="3" class="form-control" placeholder='{"Authorization": "Bearer token123"}'></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="testBody">Request Body (JSON):</label>
+                        <textarea id="testBody" rows="4" class="form-control" placeholder='{"name": "John Doe", "email": "john@example.com"}'></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="expectedStatus">Expected Status Code:</label>
+                        <input type="number" id="expectedStatus" min="100" max="599" value="200" class="form-control">
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelTestBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Test Case</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
