@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP API Test Client</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>HTTP API Test Client</h1>
+            <button id="globalConfigBtn" class="config-btn">⚙️ Global Config</button>
+        </header>
+
+        <!-- Global Configuration Modal -->
+        <div id="globalConfigModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Global Configuration</h2>
+                <form id="globalConfigForm">
+                    <div class="form-group">
+                        <label for="baseUrl">Base URL:</label>
+                        <input type="url" id="baseUrl" name="baseUrl" placeholder="https://api.example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="timeout">Timeout (seconds):</label>
+                        <input type="number" id="timeout" name="timeout" min="1" max="300" value="30">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="sslEnabled" name="sslEnabled" checked>
+                            SSL Enabled
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="authType">Authentication Type:</label>
+                        <select id="authType" name="authType">
+                            <option value="none">None</option>
+                            <option value="bearer">Bearer Token</option>
+                            <option value="basic">Basic Auth</option>
+                            <option value="apikey">API Key</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="authValue">Auth Value:</label>
+                        <input type="password" id="authValue" name="authValue" placeholder="Token or credentials">
+                    </div>
+                    <div class="form-group">
+                        <label for="commonHeaders">Common Headers (JSON format):</label>
+                        <textarea id="commonHeaders" name="commonHeaders" rows="3" placeholder='{"Content-Type": "application/json"}'></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit">Save Configuration</button>
+                        <button type="button" id="resetConfig">Reset to Defaults</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Test Suite Controls -->
+        <div class="controls">
+            <div class="control-group">
+                <input type="file" id="importFile" accept=".json" style="display: none;">
+                <button id="importBtn">📁 Import Test Suite</button>
+                <button id="exportBtn">💾 Export Test Suite</button>
+                <button id="addTestBtn">➕ Add Test Case</button>
+            </div>
+            <div class="control-group">
+                <button id="runAllBtn">▶️ Run All Tests</button>
+                <button id="clearResultsBtn">🗑️ Clear Results</button>
+            </div>
+            <div class="search-group">
+                <input type="text" id="searchInput" placeholder="Search test cases...">
+            </div>
+        </div>
+
+        <!-- Test Cases Container -->
+        <div class="test-cases-container">
+            <div id="testCasesList" class="test-cases-list">
+                <!-- Test cases will be dynamically loaded here -->
+            </div>
+            <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                <div class="spinner"></div>
+                <span>Loading test cases...</span>
+            </div>
+        </div>
+
+        <!-- Add/Edit Test Case Modal -->
+        <div id="testCaseModal" class="modal">
+            <div class="modal-content large">
+                <span class="close">&times;</span>
+                <h2 id="testCaseModalTitle">Add Test Case</h2>
+                <form id="testCaseForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="testName">Test Name:</label>
+                            <input type="text" id="testName" name="testName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="testDescription">Description:</label>
+                            <input type="text" id="testDescription" name="testDescription">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="testMethod">Method:</label>
+                            <select id="testMethod" name="testMethod" required>
+                                <option value="GET">GET</option>
+                                <option value="POST">POST</option>
+                                <option value="PUT">PUT</option>
+                                <option value="PATCH">PATCH</option>
+                                <option value="DELETE">DELETE</option>
+                                <option value="HEAD">HEAD</option>
+                                <option value="OPTIONS">OPTIONS</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="testUrl">URL:</label>
+                            <input type="url" id="testUrl" name="testUrl" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="testHeaders">Headers (JSON format):</label>
+                        <textarea id="testHeaders" name="testHeaders" rows="3" placeholder='{"Content-Type": "application/json"}'></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="testBody">Request Body:</label>
+                        <textarea id="testBody" name="testBody" rows="5" placeholder="Request body (JSON, XML, text, etc.)"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="expectedStatus">Expected Status Code:</label>
+                        <input type="number" id="expectedStatus" name="expectedStatus" min="100" max="599" value="200">
+                    </div>
+                    <div class="form-group">
+                        <label for="expectedResponse">Expected Response (optional):</label>
+                        <textarea id="expectedResponse" name="expectedResponse" rows="3" placeholder="Expected response body or JSON path assertions"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit">Save Test Case</button>
+                        <button type="button" class="cancel">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
