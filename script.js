@@ -2,6 +2,10 @@ class HTTPTestClient {
     constructor() {
         this.testCases = [];
         this.testResults = [];
+        // Virtualization settings
+        this.pageSize = 20; // Default page size
+        this.currentPage = 1;
+        this.totalPages = 1;
         this.init();
     }
 
@@ -28,6 +32,11 @@ class HTTPTestClient {
         // Form validation on input
         document.getElementById('testUrl').addEventListener('input', this.validateForm);
         document.getElementById('testName').addEventListener('input', this.validateForm);
+
+        // Pagination controls
+        document.getElementById('prevPage').addEventListener('click', () => this.goToPreviousPage());
+        document.getElementById('nextPage').addEventListener('click', () => this.goToNextPage());
+        document.getElementById('pageSize').addEventListener('change', (e) => this.changePageSize(e.target.value));
     }
 
     async handleFileUpload(event) {
@@ -286,10 +295,33 @@ class HTTPTestClient {
         
         if (!this.testCases.length) {
             container.innerHTML = '<div class="empty-state">No test cases loaded. Upload JSON files or create test cases manually.</div>';
+            this.updatePaginationControls();
             return;
         }
 
-        container.innerHTML = this.testCases.map(testCase => `
+        // Calculate pagination
+        this.totalPages = this.pageSize === 'all' ? 1 : Math.ceil(this.testCases.length / parseInt(this.pageSize));
+        
+        // Ensure current page is valid
+        if (this.currentPage > this.totalPages) {
+            this.currentPage = this.totalPages;
+        }
+        if (this.currentPage < 1) {
+            this.currentPage = 1;
+        }
+
+        // Get test cases for current page
+        let visibleTestCases;
+        if (this.pageSize === 'all') {
+            visibleTestCases = this.testCases;
+        } else {
+            const startIndex = (this.currentPage - 1) * parseInt(this.pageSize);
+            const endIndex = startIndex + parseInt(this.pageSize);
+            visibleTestCases = this.testCases.slice(startIndex, endIndex);
+        }
+
+        // Render only visible test cases
+        container.innerHTML = visibleTestCases.map(testCase => `
             <div class="test-case-item" data-id="${testCase.id}">
                 <div class="test-case-header">
                     <div class="test-case-title">${this.escapeHtml(testCase.name)}</div>
@@ -307,6 +339,8 @@ class HTTPTestClient {
                 </div>
             </div>
         `).join('');
+
+        this.updatePaginationControls();
     }
 
     updateResultsDisplay() {
@@ -495,6 +529,59 @@ class HTTPTestClient {
         const addButton = document.getElementById('addTestCase');
         
         addButton.disabled = !name || !url;
+    }
+
+    // Pagination methods
+    updatePaginationControls() {
+        const paginationControls = document.getElementById('paginationControls');
+        const currentPageNum = document.getElementById('currentPageNum');
+        const totalPagesNum = document.getElementById('totalPagesNum');
+        const totalTestsNum = document.getElementById('totalTestsNum');
+        const prevButton = document.getElementById('prevPage');
+        const nextButton = document.getElementById('nextPage');
+        const pageSizeSelect = document.getElementById('pageSize');
+
+        if (this.testCases.length === 0) {
+            paginationControls.style.display = 'none';
+            return;
+        }
+
+        // Show pagination controls if we have more than the page size or if page size is configurable
+        const shouldShowPagination = this.testCases.length > 20 || this.pageSize !== 'all';
+        paginationControls.style.display = shouldShowPagination ? 'flex' : 'none';
+
+        if (shouldShowPagination) {
+            currentPageNum.textContent = this.currentPage;
+            totalPagesNum.textContent = this.totalPages;
+            totalTestsNum.textContent = this.testCases.length;
+            
+            prevButton.disabled = this.currentPage <= 1;
+            nextButton.disabled = this.currentPage >= this.totalPages;
+            
+            // Update page size selector
+            pageSizeSelect.value = this.pageSize;
+        }
+    }
+
+    goToPreviousPage() {
+        if (this.currentPage > 1) {
+            this.currentPage--;
+            this.updateTestCasesList();
+        }
+    }
+
+    goToNextPage() {
+        if (this.currentPage < this.totalPages) {
+            this.currentPage++;
+            this.updateTestCasesList();
+        }
+    }
+
+    changePageSize(newPageSize) {
+        this.pageSize = newPageSize === 'all' ? 'all' : parseInt(newPageSize);
+        this.currentPage = 1; // Reset to first page when changing page size
+        this.updateTestCasesList();
+        this.showNotification(`Page size changed to ${newPageSize === 'all' ? 'show all' : newPageSize}`, 'info');
     }
 }
 

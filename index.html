@@ -29,6 +29,28 @@
                     <button id="clearTests" class="btn btn-secondary">Clear All Tests</button>
                 </div>
                 
+                <!-- Pagination Controls -->
+                <div class="pagination-controls" id="paginationControls" style="display: none;">
+                    <div class="pagination-info">
+                        <span>Page <span id="currentPageNum">1</span> of <span id="totalPagesNum">1</span></span>
+                        <span>(<span id="totalTestsNum">0</span> test cases total)</span>
+                    </div>
+                    <div class="pagination-buttons">
+                        <button id="prevPage" class="btn btn-secondary">← Previous</button>
+                        <button id="nextPage" class="btn btn-secondary">Next →</button>
+                    </div>
+                    <div class="page-size-control">
+                        <label for="pageSize">Items per page:</label>
+                        <select id="pageSize">
+                            <option value="10">10</option>
+                            <option value="20" selected>20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="all">Show All</option>
+                        </select>
+                    </div>
+                </div>
+                
                 <div id="testCasesList" class="test-cases-list"></div>
             </div>
 
