@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP API Test Client</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="icon">🚀</i> HTTP API Test Client</h1>
+            <p class="subtitle">Load, execute, and manage your API test cases with ease</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Test Case Management Section -->
+            <div class="section">
+                <h2>Test Case Management</h2>
+                <div class="test-case-controls">
+                    <div class="upload-section">
+                        <label for="fileInput" class="file-upload-btn">
+                            📁 Load JSON Test Cases
+                        </label>
+                        <input type="file" id="fileInput" accept=".json" multiple style="display: none;">
+                        <span id="fileStatus" class="file-status"></span>
+                    </div>
+                    <button id="clearTests" class="btn btn-secondary">Clear All Tests</button>
+                </div>
+                
+                <div id="testCasesList" class="test-cases-list"></div>
+            </div>
+
+            <!-- Manual Test Case Creation -->
+            <div class="section">
+                <h2>Create New Test Case</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="testName">Test Name:</label>
+                        <input type="text" id="testName" placeholder="Enter test case name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="httpMethod">HTTP Method:</label>
+                        <select id="httpMethod">
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="DELETE">DELETE</option>
+                            <option value="PATCH">PATCH</option>
+                            <option value="HEAD">HEAD</option>
+                            <option value="OPTIONS">OPTIONS</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="testUrl">URL:</label>
+                        <input type="url" id="testUrl" placeholder="https://api.example.com/endpoint">
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="testHeaders">Headers (JSON format):</label>
+                        <textarea id="testHeaders" rows="3" placeholder='{"Content-Type": "application/json", "Authorization": "Bearer token"}'></textarea>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="testBody">Request Body:</label>
+                        <textarea id="testBody" rows="5" placeholder='{"key": "value"}'></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="expectedStatus">Expected Status:</label>
+                        <input type="number" id="expectedStatus" placeholder="200" min="100" max="599">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="timeout">Timeout (ms):</label>
+                        <input type="number" id="timeout" placeholder="5000" min="1000" max="60000">
+                    </div>
+                </div>
+                
+                <button id="addTestCase" class="btn btn-primary">Add Test Case</button>
+            </div>
+
+            <!-- Test Execution Results -->
+            <div class="section">
+                <h2>Test Results</h2>
+                <div class="results-controls">
+                    <button id="runAllTests" class="btn btn-success">🏃 Run All Tests</button>
+                    <button id="clearResults" class="btn btn-secondary">Clear Results</button>
+                    <div class="results-summary">
+                        <span id="resultsSummary"></span>
+                    </div>
+                </div>
+                <div id="testResults" class="test-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

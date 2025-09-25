@@ -1,0 +1,52 @@
+[
+  {
+    "name": "HTTPBin - GET Request",
+    "method": "GET",
+    "url": "https://httpbin.org/get",
+    "headers": {
+      "User-Agent": "HTTP-Test-Client/1.0"
+    },
+    "expectedStatus": 200,
+    "timeout": 10000
+  },
+  {
+    "name": "HTTPBin - POST JSON",
+    "method": "POST",
+    "url": "https://httpbin.org/post",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "name": "Test User",
+      "email": "test@example.com",
+      "message": "This is a test message"
+    },
+    "expectedStatus": 200,
+    "timeout": 10000
+  },
+  {
+    "name": "HTTPBin - Test Headers",
+    "method": "GET",
+    "url": "https://httpbin.org/headers",
+    "headers": {
+      "X-Custom-Header": "test-value",
+      "Authorization": "Bearer test-token"
+    },
+    "expectedStatus": 200,
+    "timeout": 10000
+  },
+  {
+    "name": "HTTPBin - Test Status Code",
+    "method": "GET",
+    "url": "https://httpbin.org/status/418",
+    "expectedStatus": 418,
+    "timeout": 10000
+  },
+  {
+    "name": "HTTPBin - Test Delay",
+    "method": "GET",
+    "url": "https://httpbin.org/delay/2",
+    "expectedStatus": 200,
+    "timeout": 15000
+  }
+]
