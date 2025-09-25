@@ -90,12 +90,18 @@
                     
                     <div class="form-group full-width">
                         <label for="testUrl">URL:</label>
-                        <input type="url" id="testUrl" placeholder="https://api.example.com/endpoint">
+                        <input type="url" id="testUrl" placeholder="https://api.example.com/endpoint or /relative-path">
+                        <small class="help-text global-hint" id="urlHint" style="display: none;">
+                            <strong>Global Base URL:</strong> <span id="urlHintValue"></span>
+                        </small>
                     </div>
                     
                     <div class="form-group full-width">
                         <label for="testHeaders">Headers (JSON format):</label>
                         <textarea id="testHeaders" rows="3" placeholder='{"Content-Type": "application/json", "Authorization": "Bearer token"}'></textarea>
+                        <small class="help-text global-hint" id="headersHint" style="display: none;">
+                            <strong>Global Headers will be merged:</strong> <span id="headersHintValue"></span>
+                        </small>
                     </div>
                     
                     <div class="form-group full-width">
@@ -106,11 +112,17 @@
                     <div class="form-group">
                         <label for="expectedStatus">Expected Status:</label>
                         <input type="number" id="expectedStatus" placeholder="200" min="100" max="599">
+                        <small class="help-text global-hint" id="statusHint" style="display: none;">
+                            <strong>Global Default:</strong> <span id="statusHintValue"></span>
+                        </small>
                     </div>
                     
                     <div class="form-group">
                         <label for="timeout">Timeout (ms):</label>
                         <input type="number" id="timeout" placeholder="5000" min="1000" max="60000">
+                        <small class="help-text global-hint" id="timeoutHint" style="display: none;">
+                            <strong>Global Default:</strong> <span id="timeoutHintValue"></span>
+                        </small>
                     </div>
                 </div>
                 

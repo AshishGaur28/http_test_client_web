@@ -541,6 +541,7 @@ class HTTPTestClient {
         };
 
         this.saveGlobalSettingsToStorage();
+        this.updateFormHints(); // Update hints after saving
         this.showNotification('Global settings saved successfully', 'success');
     }
 
@@ -570,6 +571,51 @@ class HTTPTestClient {
         document.getElementById('globalHeaders').value = this.globalSettings.headers && Object.keys(this.globalSettings.headers).length > 0 
             ? JSON.stringify(this.globalSettings.headers, null, 2) 
             : '';
+            
+        // Update hints in the test case form
+        this.updateFormHints();
+    }
+
+    updateFormHints() {
+        // Base URL hint
+        const urlHint = document.getElementById('urlHint');
+        const urlHintValue = document.getElementById('urlHintValue');
+        if (this.globalSettings.baseUrl) {
+            urlHintValue.textContent = this.globalSettings.baseUrl;
+            urlHint.style.display = 'block';
+        } else {
+            urlHint.style.display = 'none';
+        }
+
+        // Timeout hint
+        const timeoutHint = document.getElementById('timeoutHint');
+        const timeoutHintValue = document.getElementById('timeoutHintValue');
+        if (this.globalSettings.timeout) {
+            timeoutHintValue.textContent = this.globalSettings.timeout + 'ms';
+            timeoutHint.style.display = 'block';
+        } else {
+            timeoutHint.style.display = 'none';
+        }
+
+        // Status hint
+        const statusHint = document.getElementById('statusHint');
+        const statusHintValue = document.getElementById('statusHintValue');
+        if (this.globalSettings.expectedStatus) {
+            statusHintValue.textContent = this.globalSettings.expectedStatus;
+            statusHint.style.display = 'block';
+        } else {
+            statusHint.style.display = 'none';
+        }
+
+        // Headers hint
+        const headersHint = document.getElementById('headersHint');
+        const headersHintValue = document.getElementById('headersHintValue');
+        if (this.globalSettings.headers && Object.keys(this.globalSettings.headers).length > 0) {
+            headersHintValue.textContent = JSON.stringify(this.globalSettings.headers);
+            headersHint.style.display = 'block';
+        } else {
+            headersHint.style.display = 'none';
+        }
     }
 
     saveGlobalSettingsToStorage() {

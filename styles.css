@@ -180,6 +180,15 @@ body {
     display: block;
 }
 
+.global-hint {
+    color: #667eea;
+    font-weight: 500;
+}
+
+.global-hint strong {
+    color: #4f46e5;
+}
+
 .form-group {
     display: flex;
     flex-direction: column;
