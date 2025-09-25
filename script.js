@@ -281,6 +281,55 @@ class HTTPTestClient {
         this.updateResultsDisplay();
     }
 
+    toggleTestCase(id) {
+        const testCaseElement = document.querySelector(`[data-id="${id}"]`);
+        if (!testCaseElement) return;
+
+        // Close all other expanded test cases (accordion behavior)
+        document.querySelectorAll('.test-case-item.expanded').forEach(item => {
+            if (item !== testCaseElement) {
+                item.classList.remove('expanded');
+            }
+        });
+
+        // Toggle current test case
+        testCaseElement.classList.toggle('expanded');
+    }
+
+    renderTestResult(result) {
+        const statusClass = result.success ? 'status-success' : 'status-failure';
+        const statusText = result.success ? 'PASSED' : 'FAILED';
+        
+        return `
+            <div class="test-result-inline">
+                <div class="result-header">
+                    <h4>Test Result</h4>
+                    <span class="test-status ${statusClass}">${statusText}</span>
+                </div>
+                <div class="result-details">
+                    ${result.responseTime ? `<div class="result-section">
+                        <strong>Response Time:</strong> ${result.responseTime}ms
+                    </div>` : ''}
+                    
+                    ${result.actualStatus ? `<div class="result-section">
+                        <strong>Status Code:</strong> ${result.actualStatus}
+                    </div>` : ''}
+                    
+                    ${result.error ? `<div class="result-section">
+                        <strong>Error:</strong> ${this.escapeHtml(result.error)}
+                    </div>` : ''}
+                    
+                    ${result.response ? `<div class="result-section">
+                        <strong>Response:</strong>
+                        <div class="response-body">
+                            <pre><code>${this.escapeHtml(typeof result.response === 'object' ? JSON.stringify(result.response, null, 2) : result.response)}</code></pre>
+                        </div>
+                    </div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
     updateTestCasesList() {
         const container = document.getElementById('testCasesList');
         
@@ -289,24 +338,44 @@ class HTTPTestClient {
             return;
         }
 
-        container.innerHTML = this.testCases.map(testCase => `
+        container.innerHTML = this.testCases.map(testCase => {
+            const testResult = this.testResults.find(r => r.id === testCase.id);
+            
+            return `
             <div class="test-case-item" data-id="${testCase.id}">
-                <div class="test-case-header">
-                    <div class="test-case-title">${this.escapeHtml(testCase.name)}</div>
-                    <span class="test-case-method method-${testCase.method}">${testCase.method}</span>
+                <div class="test-case-collapsed-header" onclick="testClient.toggleTestCase('${testCase.id}')">
+                    <div class="test-case-header-left">
+                        <span class="expand-collapse-icon">▶</span>
+                        <div>
+                            <div class="test-case-title">${this.escapeHtml(testCase.name)}</div>
+                            ${testCase.description ? `<div class="test-case-description">${this.escapeHtml(testCase.description)}</div>` : ''}
+                        </div>
+                        <span class="test-case-method method-${testCase.method}">${testCase.method}</span>
+                    </div>
+                    <div class="test-case-collapsed-actions" onclick="event.stopPropagation()">
+                        <button class="test-case-run-btn-collapsed" onclick="testClient.runSingleTestById('${testCase.id}')">▶️ Run</button>
+                    </div>
                 </div>
                 <div class="test-case-details">
                     <div class="test-case-url">${this.escapeHtml(testCase.url)}</div>
-                    ${testCase.expectedStatus ? `<div>Expected Status: ${testCase.expectedStatus}</div>` : ''}
-                    ${testCase.timeout ? `<div>Timeout: ${testCase.timeout}ms</div>` : ''}
-                    <div>Source: ${this.escapeHtml(testCase.source)}</div>
-                </div>
-                <div class="test-case-controls">
-                    <button class="btn btn-primary" onclick="testClient.runSingleTestById('${testCase.id}')">▶️ Run Test</button>
-                    <button class="btn btn-danger" onclick="testClient.deleteTestCase('${testCase.id}')">🗑️ Delete</button>
+                    ${testCase.headers && Object.keys(testCase.headers).length > 0 ? 
+                        `<div><strong>Headers:</strong> ${this.escapeHtml(JSON.stringify(testCase.headers, null, 2))}</div>` : ''}
+                    ${testCase.body ? 
+                        `<div><strong>Request Body:</strong> ${this.escapeHtml(typeof testCase.body === 'object' ? JSON.stringify(testCase.body, null, 2) : testCase.body)}</div>` : ''}
+                    ${testCase.expectedStatus ? `<div><strong>Expected Status:</strong> ${testCase.expectedStatus}</div>` : ''}
+                    ${testCase.timeout ? `<div><strong>Timeout:</strong> ${testCase.timeout}ms</div>` : ''}
+                    <div><strong>Source:</strong> ${this.escapeHtml(testCase.source)}</div>
+                    
+                    <div class="test-case-controls">
+                        <button class="btn btn-primary" onclick="testClient.runSingleTestById('${testCase.id}')">▶️ Run Test</button>
+                        <button class="btn btn-danger" onclick="testClient.deleteTestCase('${testCase.id}')">🗑️ Delete</button>
+                    </div>
+                    
+                    ${testResult ? this.renderTestResult(testResult) : ''}
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     updateResultsDisplay() {
@@ -405,7 +474,16 @@ class HTTPTestClient {
                 this.testResults.push(result);
             }
             
+            // Update displays to show inline results
+            this.updateTestCasesList();
             this.updateResultsDisplay();
+            
+            // Auto-expand test case to show result if it's not already expanded
+            const testCaseElement = document.querySelector(`[data-id="${id}"]`);
+            if (testCaseElement && !testCaseElement.classList.contains('expanded')) {
+                testCaseElement.classList.add('expanded');
+            }
+            
             this.showNotification(
                 `Test "${testCase.name}" ${result.success ? 'passed' : 'failed'}`,
                 result.success ? 'success' : 'error'
