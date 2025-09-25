@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP API Test Client</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>HTTP API Test Client</h1>
+            <div class="header-controls">
+                <button id="globalConfigBtn" class="btn btn-secondary">
+                    <span class="icon">⚙️</span> Global Config
+                </button>
+                <button id="importBtn" class="btn btn-primary">
+                    <span class="icon">📁</span> Import Tests
+                </button>
+                <button id="exportBtn" class="btn btn-secondary">
+                    <span class="icon">💾</span> Export
+                </button>
+                <button id="addTestBtn" class="btn btn-primary">
+                    <span class="icon">➕</span> Add Test
+                </button>
+            </div>
+        </header>
+
+        <!-- Global Configuration Modal -->
+        <div id="globalConfigModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Global Configuration</h2>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="globalBaseUrl">Base URL:</label>
+                        <input type="url" id="globalBaseUrl" placeholder="https://api.example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="globalTimeout">Timeout (ms):</label>
+                        <input type="number" id="globalTimeout" value="5000" min="100">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="globalSslEnabled"> SSL Enabled
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="globalAuthType">Authentication Type:</label>
+                        <select id="globalAuthType">
+                            <option value="none">None</option>
+                            <option value="basic">Basic Auth</option>
+                            <option value="bearer">Bearer Token</option>
+                            <option value="api-key">API Key</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="globalHeaders">Common Headers (JSON):</label>
+                        <textarea id="globalHeaders" placeholder='{"Content-Type": "application/json", "User-Agent": "HTTP-Test-Client/1.0"}'></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="saveGlobalConfigBtn" class="btn btn-primary">Save</button>
+                    <button class="btn btn-secondary close-modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add/Edit Test Modal -->
+        <div id="testModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="testModalTitle">Add Test Case</h2>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="testName">Name:</label>
+                        <input type="text" id="testName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="testDescription">Description:</label>
+                        <textarea id="testDescription"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="testMethod">Method:</label>
+                        <select id="testMethod">
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="DELETE">DELETE</option>
+                            <option value="PATCH">PATCH</option>
+                            <option value="HEAD">HEAD</option>
+                            <option value="OPTIONS">OPTIONS</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="testUrl">URL:</label>
+                        <input type="url" id="testUrl" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="testHeaders">Headers (JSON):</label>
+                        <textarea id="testHeaders" placeholder='{"Content-Type": "application/json"}'></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="testBody">Request Body:</label>
+                        <textarea id="testBody" placeholder="Request body (for POST, PUT, PATCH requests)"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="testExpectedStatus">Expected Status Code:</label>
+                        <input type="number" id="testExpectedStatus" value="200" min="100" max="599">
+                    </div>
+                    <div class="form-group">
+                        <label for="testExpectedResponse">Expected Response (optional):</label>
+                        <textarea id="testExpectedResponse" placeholder="Expected response body or pattern"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="saveTestBtn" class="btn btn-primary">Save</button>
+                    <button class="btn btn-secondary close-modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Cases Container -->
+        <div class="test-cases-section">
+            <div class="section-header">
+                <h2>Test Cases</h2>
+                <div class="test-controls">
+                    <button id="runAllBtn" class="btn btn-success">
+                        <span class="icon">▶️</span> Run All
+                    </button>
+                    <button id="clearResultsBtn" class="btn btn-secondary">
+                        <span class="icon">🗑️</span> Clear Results
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Search and Filter -->
+            <div class="search-filter-bar">
+                <input type="text" id="searchInput" placeholder="Search test cases..." class="search-input">
+                <select id="methodFilter" class="filter-select">
+                    <option value="">All Methods</option>
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
+                    <option value="PATCH">PATCH</option>
+                    <option value="HEAD">HEAD</option>
+                    <option value="OPTIONS">OPTIONS</option>
+                </select>
+                <select id="statusFilter" class="filter-select">
+                    <option value="">All Status</option>
+                    <option value="not-run">Not Run</option>
+                    <option value="passed">Passed</option>
+                    <option value="failed">Failed</option>
+                    <option value="error">Error</option>
+                </select>
+            </div>
+
+            <!-- Test Cases Container with Virtual Scrolling -->
+            <div id="testCasesContainer" class="test-cases-container">
+                <div id="testCasesList" class="test-cases-list"></div>
+                <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Loading test cases...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Input for Import -->
+        <input type="file" id="fileInput" accept=".json" style="display: none;">
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
