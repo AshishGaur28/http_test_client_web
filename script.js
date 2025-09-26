@@ -162,7 +162,7 @@ class HTTPTestClient {
         }
 
         this.testResults = [];
-        this.updateResultsDisplay();
+        this.updateDisplay(); // Refresh to show cleared results
         
         const runButton = document.getElementById('runAllTests');
         const originalText = runButton.textContent;
@@ -178,18 +178,26 @@ class HTTPTestClient {
                 this.testResults.push(result);
                 if (result.success) successCount++;
                 else failureCount++;
-                this.updateResultsDisplay();
+                this.updateDisplay(); // Refresh after each test completes
+                
+                // Re-highlight code syntax
+                if (window.Prism) {
+                    Prism.highlightAll();
+                }
             } catch (error) {
                 const errorResult = {
                     id: testCase.id,
                     testName: testCase.name,
                     success: false,
                     error: error.message,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    responseTime: 0,
+                    url: testCase.url,
+                    method: testCase.method
                 };
                 this.testResults.push(errorResult);
                 failureCount++;
-                this.updateResultsDisplay();
+                this.updateDisplay(); // Refresh after error
             }
         }
 
@@ -281,6 +289,120 @@ class HTTPTestClient {
         this.updateResultsDisplay();
     }
 
+    toggleTestCaseExpanded(id) {
+        const testCaseItem = document.querySelector(`.test-case-item[data-id="${id}"]`);
+        if (!testCaseItem) return;
+
+        const expandedContent = testCaseItem.querySelector('.test-case-expanded-content');
+        const expandIcon = testCaseItem.querySelector('.expand-icon');
+        
+        if (expandedContent.style.display === 'none') {
+            expandedContent.style.display = 'block';
+            expandIcon.textContent = '▲';
+            testCaseItem.classList.add('expanded');
+        } else {
+            expandedContent.style.display = 'none';
+            expandIcon.textContent = '▼';
+            testCaseItem.classList.remove('expanded');
+        }
+    }
+
+    renderTestCaseExpandedContent(testCase, result) {
+        if (result) {
+            // Show test results
+            const statusClass = result.success ? 'success' : 'failure';
+            const statusText = result.success ? 'PASSED' : 'FAILED';
+            
+            return `
+                <div class="inline-test-result">
+                    <div class="inline-result-header">
+                        <h4>Test Result</h4>
+                        <span class="result-status status-${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="inline-result-sections">
+                        <div class="inline-result-section">
+                            <h5>Request Details</h5>
+                            <div><strong>Method:</strong> ${result.method}</div>
+                            <div><strong>URL:</strong> ${this.escapeHtml(result.url)}</div>
+                            <div><strong>Response Time:</strong> ${result.responseTime}ms</div>
+                            <div><strong>Timestamp:</strong> ${new Date(result.timestamp).toLocaleString()}</div>
+                        </div>
+                        
+                        ${result.status ? `
+                            <div class="inline-result-section">
+                                <h5>Response Status</h5>
+                                <div><strong>Actual:</strong> ${result.status}</div>
+                                <div><strong>Expected:</strong> ${result.expectedStatus || 'Not specified'}</div>
+                            </div>
+                        ` : ''}
+                        
+                        ${result.error ? `
+                            <div class="inline-result-section">
+                                <h5>Error</h5>
+                                <div class="error-message">${this.escapeHtml(result.error)}</div>
+                            </div>
+                        ` : ''}
+                        
+                        ${result.headers && Object.keys(result.headers).length > 0 ? `
+                            <div class="inline-result-section">
+                                <h5>Response Headers</h5>
+                                <div class="response-body">
+                                    <pre><code class="language-json">${this.escapeHtml(JSON.stringify(result.headers, null, 2))}</code></pre>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${result.body ? `
+                            <div class="inline-result-section">
+                                <h5>Response Body</h5>
+                                <div class="response-body">
+                                    <pre><code class="language-json">${this.escapeHtml(typeof result.body === 'object' ? JSON.stringify(result.body, null, 2) : result.body)}</code></pre>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        } else {
+            // Show test configuration
+            return `
+                <div class="inline-test-config">
+                    <div class="inline-config-header">
+                        <h4>Test Configuration</h4>
+                    </div>
+                    <div class="inline-config-sections">
+                        <div class="inline-config-section">
+                            <h5>Request Details</h5>
+                            <div><strong>Method:</strong> ${testCase.method}</div>
+                            <div><strong>URL:</strong> ${this.escapeHtml(testCase.url)}</div>
+                            ${testCase.expectedStatus ? `<div><strong>Expected Status:</strong> ${testCase.expectedStatus}</div>` : ''}
+                            ${testCase.timeout ? `<div><strong>Timeout:</strong> ${testCase.timeout}ms</div>` : ''}
+                            <div><strong>Source:</strong> ${this.escapeHtml(testCase.source)}</div>
+                        </div>
+                        
+                        ${testCase.headers && Object.keys(testCase.headers).length > 0 ? `
+                            <div class="inline-config-section">
+                                <h5>Request Headers</h5>
+                                <div class="response-body">
+                                    <pre><code class="language-json">${this.escapeHtml(JSON.stringify(testCase.headers, null, 2))}</code></pre>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${testCase.body ? `
+                            <div class="inline-config-section">
+                                <h5>Request Body</h5>
+                                <div class="response-body">
+                                    <pre><code class="language-json">${this.escapeHtml(typeof testCase.body === 'object' ? JSON.stringify(testCase.body, null, 2) : testCase.body)}</code></pre>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
     updateTestCasesList() {
         const container = document.getElementById('testCasesList');
         
@@ -289,24 +411,40 @@ class HTTPTestClient {
             return;
         }
 
-        container.innerHTML = this.testCases.map(testCase => `
-            <div class="test-case-item" data-id="${testCase.id}">
-                <div class="test-case-header">
-                    <div class="test-case-title">${this.escapeHtml(testCase.name)}</div>
-                    <span class="test-case-method method-${testCase.method}">${testCase.method}</span>
+        container.innerHTML = this.testCases.map(testCase => {
+            const result = this.testResults.find(r => r.id === testCase.id);
+            const hasResult = !!result;
+            const statusClass = hasResult ? (result.success ? 'success' : 'failure') : 'pending';
+            const statusIcon = hasResult ? (result.success ? '✅' : '❌') : '⏸️';
+            
+            return `
+            <div class="test-case-item test-case-${statusClass}" data-id="${testCase.id}">
+                <div class="test-case-header" onclick="testClient.toggleTestCaseExpanded('${testCase.id}')">
+                    <div class="test-case-header-left">
+                        <div class="test-case-status-icon">${statusIcon}</div>
+                        <div class="test-case-title">${this.escapeHtml(testCase.name)}</div>
+                    </div>
+                    <div class="test-case-header-right">
+                        <span class="test-case-method method-${testCase.method}">${testCase.method}</span>
+                        <div class="expand-icon">▼</div>
+                    </div>
                 </div>
-                <div class="test-case-details">
+                <div class="test-case-summary">
                     <div class="test-case-url">${this.escapeHtml(testCase.url)}</div>
-                    ${testCase.expectedStatus ? `<div>Expected Status: ${testCase.expectedStatus}</div>` : ''}
-                    ${testCase.timeout ? `<div>Timeout: ${testCase.timeout}ms</div>` : ''}
-                    <div>Source: ${this.escapeHtml(testCase.source)}</div>
+                    ${hasResult ? `<div class="test-case-result-summary">
+                        ${result.success ? `✅ Passed` : `❌ Failed`} • ${result.responseTime}ms
+                        ${result.error ? ` • ${this.escapeHtml(result.error)}` : ''}
+                    </div>` : ''}
+                </div>
+                <div class="test-case-expanded-content" style="display: none;">
+                    ${this.renderTestCaseExpandedContent(testCase, result)}
                 </div>
                 <div class="test-case-controls">
                     <button class="btn btn-primary" onclick="testClient.runSingleTestById('${testCase.id}')">▶️ Run Test</button>
                     <button class="btn btn-danger" onclick="testClient.deleteTestCase('${testCase.id}')">🗑️ Delete</button>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
     }
 
     updateResultsDisplay() {
@@ -314,8 +452,8 @@ class HTTPTestClient {
         const summary = document.getElementById('resultsSummary');
 
         if (!this.testResults.length) {
-            container.innerHTML = '<div class="empty-state">No test results yet. Run some tests to see results here.</div>';
             summary.textContent = '';
+            container.style.display = 'none';
             return;
         }
 
@@ -328,66 +466,11 @@ class HTTPTestClient {
             <span>Total: ${this.testResults.length}</span>
         `;
 
-        container.innerHTML = this.testResults.map(result => {
-            const statusClass = result.success ? 'success' : 'failure';
-            const statusText = result.success ? 'PASSED' : 'FAILED';
-            
-            return `
-                <div class="test-result ${statusClass}">
-                    <div class="result-header">
-                        <div class="result-title">${this.escapeHtml(result.testName)}</div>
-                        <span class="result-status status-${statusClass}">${statusText}</span>
-                    </div>
-                    <div class="result-details">
-                        <div class="result-section">
-                            <h4>Request Details</h4>
-                            <div><strong>Method:</strong> ${result.method}</div>
-                            <div><strong>URL:</strong> ${this.escapeHtml(result.url)}</div>
-                            <div><strong>Response Time:</strong> ${result.responseTime}ms</div>
-                            <div><strong>Timestamp:</strong> ${new Date(result.timestamp).toLocaleString()}</div>
-                        </div>
-                        
-                        ${result.status ? `
-                            <div class="result-section">
-                                <h4>Response Status</h4>
-                                <div><strong>Actual:</strong> ${result.status}</div>
-                                <div><strong>Expected:</strong> ${result.expectedStatus}</div>
-                            </div>
-                        ` : ''}
-                        
-                        ${result.error ? `
-                            <div class="result-section">
-                                <h4>Error</h4>
-                                <div style="color: #dc3545; font-family: monospace;">${this.escapeHtml(result.error)}</div>
-                            </div>
-                        ` : ''}
-                        
-                        ${result.headers ? `
-                            <div class="result-section">
-                                <h4>Response Headers</h4>
-                                <div class="response-body">
-                                    <pre><code class="language-json">${this.escapeHtml(JSON.stringify(result.headers, null, 2))}</code></pre>
-                                </div>
-                            </div>
-                        ` : ''}
-                        
-                        ${result.body ? `
-                            <div class="result-section">
-                                <h4>Response Body</h4>
-                                <div class="response-body">
-                                    <pre><code class="language-json">${this.escapeHtml(typeof result.body === 'object' ? JSON.stringify(result.body, null, 2) : result.body)}</code></pre>
-                                </div>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        // Highlight code syntax
-        if (window.Prism) {
-            Prism.highlightAll();
-        }
+        // Keep the traditional results section hidden since we now show results inline
+        container.style.display = 'none';
+        
+        // The detailed results are now shown inline within each test case
+        // This method now primarily handles the summary display
     }
 
     async runSingleTestById(id) {
@@ -405,7 +488,15 @@ class HTTPTestClient {
                 this.testResults.push(result);
             }
             
+            // Refresh the test cases list to show updated results
+            this.updateTestCasesList();
             this.updateResultsDisplay();
+            
+            // Re-highlight code syntax
+            if (window.Prism) {
+                Prism.highlightAll();
+            }
+            
             this.showNotification(
                 `Test "${testCase.name}" ${result.success ? 'passed' : 'failed'}`,
                 result.success ? 'success' : 'error'
