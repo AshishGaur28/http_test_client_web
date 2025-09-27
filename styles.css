@@ -61,7 +61,7 @@
         border-color: var(--danger-hover);
     --border-light: rgba(0, 0, 0, 0.05);
     --border-focus: var(--primary-color);
-    --border-form: #e1e5e9;
+    --border-form: var(--primary-light);
     --border-white-alpha: rgba(255, 255, 255, 0.2);
     --border-primary-alpha: rgba(10, 132, 255, 0.3);
     --border-secondary-alpha: rgba(107, 114, 128, 0.2);
@@ -320,6 +320,7 @@ body {
     gap: 8px;
     margin-right: 10px;
     margin-bottom: 5px;
+    background-color: var(--bg-glass);
 }
 
 .sidebar-test-item.status-passed {
@@ -529,7 +530,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     padding: 15px 0;
     border-bottom: 2px solid var(--border-form);
 }
@@ -543,9 +544,39 @@ body {
     color: var(--text-primary);
     font-size: clamp(1.2em, 3vw, 1.6em);
     margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal; /* Allow wrapping for description */
+    overflow: visible;
+    text-overflow: unset;
+}
+
+.test-id {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+.inline-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: auto;
+}
+
+.inline-actions .btn-sm {
+    font-size: 0.70em;
+    padding: 2px 8px;
+    min-height: 26px;
+    min-width: 60px;
+}
+
+.test-description {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    font-weight: 400;
+    line-height: 1.4;
+    margin-top: 4px;
+    display: block;
 }
 
 .test-actions {
@@ -763,11 +794,48 @@ body {
 .form-group input,
 .form-group select,
 .form-group textarea {
-    padding: 12px;
+    padding: 2px 12px;
     border: 2px solid var(--border-form);
     border-radius: 8px;
     font-size: 1em;
     transition: border-color 0.3s ease;
+    background-color: var(--bg-glass);
+}
+
+/* Style select dropdown options for mobile browsers */
+.form-group select option {
+    background-color: var(--bg-glass) !important;
+    color: var(--text-primary) !important;
+}
+
+.form-group select option:checked {
+    background-color: var(--bg-selected) !important;
+}
+
+/* Webkit-specific styling for select dropdowns */
+.form-group select::-webkit-listbox {
+    background-color: var(--bg-glass);
+}
+
+.form-group select::-webkit-listbox option {
+    background-color: var(--bg-glass);
+    color: var(--text-primary);
+}
+
+.form-group select::-webkit-listbox option:checked {
+    background-color: var(--bg-selected);
+}
+
+/* Additional mobile browser support */
+.form-group select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 16px;
+    padding-right: 32px;
 }
 
 .form-group input:focus,

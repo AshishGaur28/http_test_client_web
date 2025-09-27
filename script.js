@@ -15,6 +15,12 @@ class HTTPTestClientApp {
     init() {
         this.bindEventHandlers();
         this.loadFromLocalStorage();
+        
+        // Auto-select the first test case if any were loaded from cache
+        if (this.testSuites.length > 0) {
+            this.selectTestCase(this.testSuites[0].id);
+        }
+        
         this.updateAllDisplays();
     }
 
@@ -107,6 +113,11 @@ class HTTPTestClientApp {
                 console.error(`Error parsing ${file.name}:`, error);
                 errorCount++;
             }
+        }
+
+        // Auto-select the first test case if any were loaded
+        if (this.testSuites.length > 0) {
+            this.selectTestCase(this.testSuites[0].id);
         }
 
         this.updateAllDisplays();
@@ -574,9 +585,54 @@ class HTTPTestClientApp {
         if (welcomeMessage) welcomeMessage.style.display = 'none';
         if (testDetailsPanel) testDetailsPanel.style.display = 'flex';
 
-        // Update test name
+        // Update test name, ID, and description
         const nameElement = document.getElementById('selectedTestName');
-        if (nameElement) nameElement.textContent = testCase.name;
+        if (nameElement) {
+            let displayText = testCase.name;
+            if (testCase.description && testCase.description !== testCase.name) {
+                displayText += `<br><span class="test-description">${this.escapeHtml(testCase.description)}</span>`;
+            }
+            if (testCase.id) {
+                displayText += `<br><span class="test-id">ID: ${testCase.id}</span>`;
+            }
+            nameElement.innerHTML = displayText;
+        }
+
+        // Add action buttons to the right side of the header
+        const testHeader = document.querySelector('.test-header');
+        if (testHeader) {
+            // Remove existing inline buttons if any
+            const existingInline = testHeader.querySelector('.inline-actions');
+            if (existingInline) existingInline.remove();
+
+            // Create new inline actions container
+            const inlineActions = document.createElement('div');
+            inlineActions.className = 'inline-actions';
+            inlineActions.innerHTML = `
+                <button id="runSelectedTest" class="btn btn-success btn-sm">Run</button>
+                <button id="deleteSelectedTest" class="btn btn-danger btn-sm">Delete</button>
+            `;
+
+            // Add to header
+            testHeader.appendChild(inlineActions);
+
+            // Re-bind event listeners to the new buttons
+            const runButton = inlineActions.querySelector('#runSelectedTest');
+            const deleteButton = inlineActions.querySelector('#deleteSelectedTest');
+            
+            if (runButton) {
+                runButton.addEventListener('click', () => this.runSelectedTest());
+            }
+            if (deleteButton) {
+                deleteButton.addEventListener('click', () => this.deleteSelectedTest());
+            }
+        }
+
+        // Hide the separate action buttons since they're now inline
+        const testActions = document.querySelector('.test-actions');
+        if (testActions) {
+            testActions.style.display = 'none';
+        }
 
         // Update request details
         this.updateRequestDetailsDisplay(testCase);
@@ -675,8 +731,6 @@ class HTTPTestClientApp {
     deleteSelectedTest() {
         if (this.selectedTestId) {
             this.removeTestCase(this.selectedTestId);
-            this.selectedTestId = null;
-            this.updateAllDisplays();
         }
     }
 
@@ -752,12 +806,22 @@ class HTTPTestClientApp {
     }
 
     removeTestCase(id) {
+        // Find the index of the test case being deleted
+        const deletedIndex = this.testSuites.findIndex(tc => tc.id === id);
+        
         this.testSuites = this.testSuites.filter(tc => tc.id !== id);
         this.testResults = this.testResults.filter(tr => tr.id !== id);
         
-        // Clear selection if the selected test was deleted
+        // Auto-select the next test case if the selected test was deleted
         if (this.selectedTestId === id) {
-            this.selectedTestId = null;
+            if (this.testSuites.length > 0) {
+                // Select the test case that was originally next, or the last one if it was the last
+                const nextIndex = Math.min(deletedIndex, this.testSuites.length - 1);
+                this.selectedTestId = this.testSuites[nextIndex].id;
+            } else {
+                // No test cases remaining
+                this.selectedTestId = null;
+            }
         }
         
         this.updateAllDisplays();
