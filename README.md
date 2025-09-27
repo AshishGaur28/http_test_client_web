@@ -1,137 +1,189 @@
-# HTTP API Test Client Web
+# HTTP API Test Client
 
-A modern, interactive web-based HTTP API testing tool with a clean, professional interface. Load test cases from JSON files, execute HTTP requests, view detailed responses, and manage your API tests all from your browser.
+A modern, professional web-based HTTP API testing tool with a clean interface and comprehensive features. Optimized for performance and maintainability with a standardized design system.
 
-## 🚀 Features
+## ✨ Features
 
-- **Load Test Cases from JSON**: Import multiple test cases from JSON files
-- **Manual Test Creation**: Create test cases using the built-in form interface
-- **HTTP Methods Support**: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
-- **Detailed Response Display**: View response status, headers, and body with syntax highlighting
-- **Test Management**: Edit, delete, and organize your test cases
-- **Batch Test Execution**: Run all tests at once or individual tests
-- **Response Time Tracking**: Monitor API performance
-- **Local Storage**: Automatically save your test cases locally
-- **Modern UI**: Clean, professional interface with responsive design
-- **Error Handling**: Comprehensive error reporting and validation
+### Core Functionality
+- **📁 JSON Test Suite Import**: Load test cases from standardized JSON files
+- **✏️ Manual Test Creation**: Create test cases using the intuitive form interface
+- **🌐 HTTP Methods Support**: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
+- **📊 Detailed Response Analysis**: View status codes, headers, and formatted response bodies
+- **⚡ Batch Test Execution**: Run all tests at once or execute individual tests
+- **⏱️ Performance Monitoring**: Track API response times
+- **💾 Persistent Storage**: Automatic local storage of test cases and results
 
-## 📁 Getting Started
+### User Experience
+- **🎨 Modern UI Design**: Professional interface with consistent design system
+- **📱 Responsive Layout**: Optimized for desktop and mobile devices
+- **� Smart Search**: Filter test cases by name or endpoint
+- **📋 Organized Display**: Group tests by source file with collapsible sections
+- **🎯 Real-time Status**: Visual indicators for test results (passed/failed)
 
-1. **Open the Application**: Simply open `index.html` in your web browser
-2. **Load Sample Tests**: Use the provided sample JSON files:
-   - `sample-tests.json` - JSONPlaceholder API tests
-   - `httpbin-tests.json` - HTTPBin service tests
+### Technical Excellence
+- **⚡ Optimized Performance**: Lightweight, fast-loading application
+- **🎨 Design System**: Consolidated CSS with custom properties for consistency
+- **🛡️ Error Handling**: Comprehensive validation and error reporting
+- **🔧 Developer Friendly**: Clean, maintainable codebase with modern JavaScript
 
-## 🔧 Usage
+## 🚀 Quick Start
 
-### Loading Test Cases from JSON
+1. **Open Application**: Open `index.html` in your web browser
+2. **Load Test Suite**: Click "Load" button and select `example_test_suite.json`
+3. **Run Tests**: Click "Run All" or individual test "▶" buttons
+4. **View Results**: Select any test case to see detailed request/response information
 
-1. Click the "📁 Load JSON Test Cases" button
-2. Select one or more JSON files containing your test cases
-3. Test cases will be automatically loaded and displayed
+## 📋 Supported Format
 
-### Creating Test Cases Manually
+The application **exclusively supports** the `example_test_suite.json` format with:
+- **`config`** object: Global configuration settings
+- **`test_cases`** array: Array of test case definitions
 
-1. Fill out the form in the "Create New Test Case" section:
-   - **Test Name**: A descriptive name for your test
-   - **HTTP Method**: Select the appropriate HTTP method
-   - **URL**: The API endpoint URL
-   - **Headers**: JSON object with request headers (optional)
-   - **Request Body**: JSON or text body for POST/PUT requests (optional)
-   - **Expected Status**: Expected HTTP status code (default: 200)
-   - **Timeout**: Request timeout in milliseconds (default: 5000)
-2. Click "Add Test"
-
-### Running Tests
-
-- **Run All Tests**: Click "🏃 Run All Tests" to execute all loaded test cases
-- **Run Individual Test**: Click "▶️ Run Test" on any specific test case
-- **View Results**: Detailed results appear in the "Test Results" section
-
-### Managing Test Cases
-
-- **Delete Test**: Click "🗑️ Delete" to remove a test case
-- **Clear All**: Use "Clear All Tests" to remove all test cases
-- **Clear Results**: Use "Clear Results" to clear test execution results
-
-## 📋 JSON Test Case Format
-
-Test cases should follow this JSON structure:
+### Example Format
 
 ```json
 {
-  "name": "Test Case Name",
-  "method": "GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS",
-  "url": "https://api.example.com/endpoint",
-  "headers": {
-    "Content-Type": "application/json",
-    "Authorization": "Bearer token"
+  "config": {
+    "base_url": "https://api.example.com",
+    "timeout_ms": 30000,
+    "default_headers": {
+      "User-Agent": "HTTP-Test-Client/1.0",
+      "Accept": "application/json"
+    },
+    "auth": {
+      "type": "bearer",
+      "token": "your-auth-token-here"
+    }
   },
-  "body": {
-    "key": "value"
-  },
-  "expectedStatus": 200,
-  "timeout": 5000
+  "test_cases": [
+    {
+      "id": "TC001",
+      "description": "Test GET request to retrieve data",
+      "method": "GET",
+      "endpoint": "/api/users/123",
+      "headers": [["Authorization", "Bearer token123"]],
+      "expected_status": 200,
+      "expected_body": { "id": 123, "name": "John Doe" }
+    }
+  ]
 }
 ```
 
-For multiple test cases, use an array:
+## ⚙️ Configuration Options
 
-```json
-[
-  {
-    "name": "First Test",
-    "method": "GET",
-    "url": "https://api.example.com/users"
-  },
-  {
-    "name": "Second Test",
-    "method": "POST",
-    "url": "https://api.example.com/users",
-    "body": {"name": "John Doe"}
-  }
-]
+### Global Config Properties
+| Property | Type | Description |
+|----------|------|-------------|
+| `base_url` | string | Base URL for all endpoints |
+| `timeout_ms` | number | Default timeout in milliseconds |
+| `default_headers` | object | Headers applied to all requests |
+| `auth.type` | string | Authentication type ("bearer") |
+| `auth.token` | string | Bearer token for authentication |
+
+### Test Case Properties
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | string | Unique test identifier |
+| `description`/`name` | string | Test case name |
+| `method` | string | HTTP method |
+| `endpoint`/`url` | string | API endpoint or full URL |
+| `headers` | array/object | Request headers |
+| `body` | string/object | Request body |
+| `expected_status` | number | Expected HTTP status code |
+| `expected_body` | object | Expected response body |
+| `timeout` | number | Request timeout (optional) |
+
+## � Design System
+
+The application uses a comprehensive design system with:
+
+### Color Palette
+- **Primary**: Blue tones (`#0A84FF`, `#005BD3`, `#004299`)
+- **Secondary**: Gray tones (`#6B7280`, `#4B5563`, `#9CA3AF`)
+- **Status Colors**: Success (`#10B981`), Error (`#EF4444`), Warning (`#F59E0B`)
+- **Text Colors**: Primary (`#111827`), Secondary (`#6B7280`), Inverse (`#FFFFFF`)
+
+### Component Standards
+- **Buttons**: Consistent 40px height, standardized padding and shadows
+- **Badges**: HTTP method indicators with color coding
+- **Forms**: Unified input styling with focus states
+- **Layouts**: Responsive grid system with proper spacing
+
+## 🏗️ Architecture
+
+### File Structure
+```
+/
+├── index.html          # Main application structure
+├── styles.css          # Comprehensive design system
+├── script.js           # Application logic (HTTPTestClientApp class)
+├── example_test_suite.json  # Sample test suite
+└── README.md          # This documentation
 ```
 
-## 🎯 Sample Test Cases
-
-The repository includes sample test files:
-
-- **`sample-tests.json`**: Tests using JSONPlaceholder API (free testing API)
-- **`httpbin-tests.json`**: Tests using HTTPBin service (HTTP testing service)
-
-## 🛠️ Technical Features
-
-- **CORS Handling**: Works with CORS-enabled APIs
-- **Request Timeout**: Configurable timeout for each request
-- **Response Parsing**: Automatic JSON parsing with fallback to text
-- **Syntax Highlighting**: Beautiful JSON syntax highlighting using Prism.js
-- **Local Storage**: Test cases persist between sessions
-- **Responsive Design**: Works on desktop and mobile devices
-- **Error Validation**: Input validation and error reporting
-
-## 🚫 Limitations
-
-- **CORS Restrictions**: Can only test APIs that allow cross-origin requests from your domain
-- **File API**: Uses browser's File API for JSON uploads
-- **No Authentication**: Currently doesn't support complex authentication flows (only header-based auth)
-
-## 💡 Tips
-
-1. **Testing Public APIs**: Use free testing APIs like JSONPlaceholder or HTTPBin
-2. **CORS Issues**: If you encounter CORS errors, the API server needs to allow your domain
-3. **Large Responses**: Response bodies are limited by browser memory
-4. **Persistence**: Your test cases are automatically saved in browser local storage
+### Class Structure
+```javascript
+HTTPTestClientApp
+├── testSuites[]        # Array of loaded test cases
+├── testResults[]       # Array of execution results
+├── config{}           # Global configuration
+└── Methods:
+    ├── loadConfiguration()
+    ├── processConfiguredTestCase()
+    ├── executeSingleTest()
+    ├── updateAllDisplays()
+    └── ...
+```
 
 ## 🔧 Development
 
-The application consists of three main files:
-- `index.html` - Main application structure
-- `styles.css` - Modern, responsive styling
-- `script.js` - Application logic and HTTP client functionality
+### CSS Architecture
+- **CSS Custom Properties**: Centralized design tokens
+- **Component-based**: Modular styling approach
+- **Performance Optimized**: Minimal unused styles
 
-No build process or dependencies required - just open in a web browser!
+### JavaScript Features
+- **ES6+ Classes**: Modern object-oriented approach
+- **Async/Await**: Clean asynchronous operation handling
+- **Error Boundaries**: Comprehensive error handling
+- **Memory Management**: Efficient data structures
+
+### Browser Support
+- Modern browsers supporting ES6+, CSS Grid, and Fetch API
+- Progressive enhancement for older browsers
+
+## 🚀 Performance Features
+
+- **Lightweight**: No external dependencies except Prism.js for syntax highlighting
+- **Fast Loading**: Optimized CSS and JavaScript
+- **Memory Efficient**: Proper cleanup and memory management
+- **Responsive**: Smooth interactions and animations
+
+## 🛡️ Security & Limitations
+
+### Security
+- Client-side only application
+- No server-side data storage
+- Secure local storage implementation
+
+### Limitations
+- **CORS**: Can only test CORS-enabled APIs
+- **Authentication**: Limited to header-based auth (Bearer tokens)
+- **File Size**: Large response bodies limited by browser memory
+
+## 🤝 Contributing
+
+The codebase follows these standards:
+- Consistent naming conventions
+- Comprehensive error handling
+- Modern JavaScript (ES6+)
+- Semantic HTML structure
+- Accessible design patterns
 
 ## 📜 License
 
 MIT License - see LICENSE file for details.
+
+---
+
+**Built with modern web standards for optimal performance and maintainability.**

@@ -9,12 +9,18 @@
 </head>
 <body>
     <div class="app-container">
+        <!-- App Header - Shared between desktop and mobile -->
+        <header class="app-header">
+            <h1>HTTP API Test Client</h1>
+            <p class="subtitle">Load, execute, and manage your API test cases with ease</p>
+        </header>
+        
         <div class="app-layout">
             <!-- Left Sidebar - Test Cases Browser -->
             <div class="sidebar">
                 <div class="sidebar-header">
                     <div class="sidebar-main-actions">
-                        <label for="fileInput" class="file-upload-btn">
+                        <label for="fileInput" class="btn btn-primary">
                             Load
                         </label>
                         <input type="file" id="fileInput" accept=".json" multiple style="display: none;">
@@ -28,7 +34,7 @@
                         <input type="text" id="searchTests" placeholder="🔍 Search test cases..." class="search-input">
                         <div class="sidebar-actions-row">
                             <div class="sidebar-create-container">
-                                <button class="tab-btn" data-tab="create">+ Create New Test</button>
+                                <button class="btn btn-primary" data-tab="create">+ Create New Test</button>
                             </div>
                             <div class="sidebar-status-container">
                                 <span id="fileStatus" class="file-status"></span>
@@ -44,10 +50,6 @@
 
             <!-- Right Main Content -->
             <div class="main-panel">
-                <header class="app-header">
-                    <h1>HTTP API Test Client</h1>
-                    <p class="subtitle">Load, execute, and manage your API test cases with ease</p>
-                </header>
                 
                 <!-- Test Details Tab -->
                 <div class="tab-content active" id="details-tab">

@@ -1,19 +1,24 @@
-class HTTPTestClient {
+/**
+ * HTTP API Test Client - Modern web-based API testing tool
+ * Supports only example_test_suite.json format (config + test_cases)
+ */
+class HTTPTestClientApp {
     constructor() {
-        this.testCases = [];
+        this.testSuites = [];
         this.testResults = [];
         this.selectedTestId = null;
         this.collapsedFileGroups = {};
+        this.supportedFormat = 'example_test_suite';
         this.init();
     }
 
     init() {
-        this.bindEvents();
+        this.bindEventHandlers();
         this.loadFromLocalStorage();
-        this.updateDisplay();
+        this.updateAllDisplays();
     }
 
-    bindEvents() {
+    bindEventHandlers() {
         // File input handler
         document.getElementById('fileInput').addEventListener('change', (e) => this.handleFileUpload(e));
         
@@ -24,18 +29,18 @@ class HTTPTestClient {
         document.getElementById('cancelTestCase').addEventListener('click', () => this.cancelTestCaseForm());
         
         // Test execution
-        document.getElementById('runAllTests').addEventListener('click', () => this.runAllTests());
+        document.getElementById('runAllTests').addEventListener('click', () => this.runAllTestSuites());
         
         // Clear functions
-        document.getElementById('clearTests').addEventListener('click', () => this.clearAllTests());
+        document.getElementById('clearTests').addEventListener('click', () => this.clearAllTestSuites());
 
         // Form validation on input
         document.getElementById('testUrl').addEventListener('input', this.validateForm);
         document.getElementById('testName').addEventListener('input', this.validateForm);
 
         // Tab switching
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
+        document.querySelectorAll('button[data-tab]').forEach(btn => {
+            btn.addEventListener('click', (e) => this.switchToTab(e.target.dataset.tab));
         });
 
         // Search functionality
@@ -51,7 +56,7 @@ class HTTPTestClient {
             const groupHeader = e.target.closest('.sidebar-group-header');
 
             if (testItem) {
-                this.selectTest(testItem.dataset.id);
+                this.selectTestCase(testItem.dataset.id);
             } else if (groupHeader) {
                 this.toggleFileGroup(groupHeader.dataset.filename);
             }
@@ -62,76 +67,66 @@ class HTTPTestClient {
         const files = event.target.files;
         if (!files.length) return;
 
-        let loadedCount = 0;
+        let loadedTestSuites = 0;
+        let totalTestsLoaded = 0;
         let errorCount = 0;
 
         for (const file of files) {
             try {
                 const content = await this.readFile(file);
                 const data = JSON.parse(content);
-                
-                // Handle different JSON structures
-                if (data.test_cases && Array.isArray(data.test_cases)) {
-                    // JSON with config and test_cases structure
-                    if (data.config) {
-                        this.loadConfig(data.config);
-                    }
-                    data.test_cases.forEach(testCase => {
-                        if (this.validateTestCase(testCase)) {
-                            const configuredTestCase = this.applyConfigToTestCase(testCase);
-                            this.testCases.push({
-                                id: this.generateId(),
-                                ...configuredTestCase,
-                                source: file.name
-                            });
-                            loadedCount++;
-                        }
-                    });
-                } else if (Array.isArray(data)) {
-                    // Multiple test cases in array
-                    data.forEach(testCase => {
-                        if (this.validateTestCase(testCase)) {
-                            this.testCases.push({
-                                id: this.generateId(),
-                                ...testCase,
-                                source: file.name
-                            });
-                            loadedCount++;
-                        }
-                    });
-                } else if (this.validateTestCase(data)) {
-                    // Single test case
-                    this.testCases.push({
-                        id: this.generateId(),
-                        ...data,
-                        source: file.name
-                    });
-                    loadedCount++;
+
+                // Enforce only example_test_suite.json format
+                if (!data.config || !data.test_cases || !Array.isArray(data.test_cases)) {
+                    throw new Error(`Invalid format in ${file.name}. Only example_test_suite.json format is supported (must have 'config' and 'test_cases' properties).`);
                 }
+
+                // Load configuration
+                this.loadConfiguration(data.config);
+
+                // Process and validate test cases
+                let validTestsInFile = 0;
+                data.test_cases.forEach(testCase => {
+                    if (this.validateTestCaseStructure(testCase)) {
+                        const processedTestCase = this.processConfiguredTestCase(testCase);
+                        this.testSuites.push({
+                            id: this.generateUniqueId(),
+                            ...processedTestCase,
+                            source: file.name
+                        });
+                        validTestsInFile++;
+                        totalTestsLoaded++;
+                    }
+                });
+
+                if (validTestsInFile > 0) {
+                    loadedTestSuites++;
+                }
+
             } catch (error) {
                 console.error(`Error parsing ${file.name}:`, error);
                 errorCount++;
             }
         }
 
-        this.updateDisplay();
+        this.updateAllDisplays();
         this.saveToLocalStorage();
-        
+
         const status = document.getElementById('fileStatus');
-        if (this.testCases.length > 0) {
-            status.textContent = `Total: ${this.testCases.length} Test${this.testCases.length !== 1 ? 's' : ''}`;
+        if (this.testSuites.length > 0) {
+            status.textContent = `Total: ${this.testSuites.length} Test${this.testSuites.length !== 1 ? 's' : ''}`;
             status.className = 'file-status';
         } else {
             status.textContent = 'No test cases loaded.';
             status.className = 'file-status empty';
         }
-        
-        if (loadedCount > 0) {
-            this.showNotification(`${loadedCount} test case(s) loaded successfully.`, 'success');
+
+        if (loadedTestSuites > 0) {
+            this.showNotification(`${loadedTestSuites} test suite(s) loaded successfully (${totalTestsLoaded} tests).`, 'success');
         }
-        
+
         if (errorCount > 0) {
-            this.showNotification(`${errorCount} file(s) could not be loaded or parsed.`, 'error');
+            this.showNotification(`${errorCount} file(s) failed to load. Only example_test_suite.json format with 'config' and 'test_cases' is supported.`, 'error');
         }
 
         // Reset file input
@@ -147,93 +142,119 @@ class HTTPTestClient {
         });
     }
 
-    loadConfig(config) {
-        // Store config for later use
+    loadConfiguration(config) {
+        // Store configuration for test case processing
         this.config = config;
-        console.log('Loaded configuration:', config);
     }
 
-    applyConfigToTestCase(testCase) {
-        // Create a new test case with config applied
-        const configuredTestCase = { ...testCase };
-        
+    processConfiguredTestCase(testCase) {
+        const processedTestCase = { ...testCase };
+
+        this.applyNamingConventions(processedTestCase);
+        this.constructFullUrl(processedTestCase);
+        this.normalizeStatusFields(processedTestCase);
+        this.normalizeBodyFields(processedTestCase);
+        this.processHeadersFormat(processedTestCase);
+        this.applyConfigurationDefaults(processedTestCase);
+        this.applyTimeoutConfiguration(processedTestCase);
+        this.applyAuthenticationConfig(processedTestCase);
+        this.parseJsonStringFields(processedTestCase);
+
+        return processedTestCase;
+    }
+
+    applyNamingConventions(testCase) {
         // Use description as name if name is missing
-        if (!configuredTestCase.name && configuredTestCase.description) {
-            configuredTestCase.name = configuredTestCase.description;
+        if (!testCase.name && testCase.description) {
+            testCase.name = testCase.description;
         }
-        
+    }
+
+    constructFullUrl(testCase) {
         // Convert endpoint to full URL using base_url
-        if (configuredTestCase.endpoint && this.config?.base_url) {
-            configuredTestCase.url = this.config.base_url + configuredTestCase.endpoint;
-            delete configuredTestCase.endpoint;
+        if (testCase.endpoint && this.config?.base_url) {
+            testCase.url = this.config.base_url + testCase.endpoint;
+            delete testCase.endpoint;
         }
-        
+    }
+
+    normalizeStatusFields(testCase) {
         // Convert expected_status to expectedStatus
-        if (configuredTestCase.expected_status !== undefined) {
-            configuredTestCase.expectedStatus = configuredTestCase.expected_status;
-            delete configuredTestCase.expected_status;
+        if (testCase.expected_status !== undefined) {
+            testCase.expectedStatus = testCase.expected_status;
+            delete testCase.expected_status;
         }
-        
+    }
+
+    normalizeBodyFields(testCase) {
         // Convert expected_body to expectedBody
-        if (configuredTestCase.expected_body !== undefined) {
-            configuredTestCase.expectedBody = configuredTestCase.expected_body;
-            delete configuredTestCase.expected_body;
+        if (testCase.expected_body !== undefined) {
+            testCase.expectedBody = testCase.expected_body;
+            delete testCase.expected_body;
         }
-        
-        // Convert headers array format to object format
-        if (Array.isArray(configuredTestCase.headers)) {
-            const headersObj = {};
-            configuredTestCase.headers.forEach(([key, value]) => {
-                headersObj[key] = value;
+    }
+
+    processHeadersFormat(testCase) {
+        // Convert headers array format [[key, value]] to object format
+        if (Array.isArray(testCase.headers)) {
+            const headersObject = {};
+            testCase.headers.forEach(([key, value]) => {
+                headersObject[key] = value;
             });
-            configuredTestCase.headers = headersObj;
+            testCase.headers = headersObject;
         }
-        
-        // Apply default headers from config
+    }
+
+    applyConfigurationDefaults(testCase) {
+        // Apply default headers from configuration
         if (this.config?.default_headers) {
-            configuredTestCase.headers = {
+            testCase.headers = {
                 ...this.config.default_headers,
-                ...(configuredTestCase.headers || {})
+                ...(testCase.headers || {})
             };
         }
-        
-        // Apply timeout from config
-        if (!configuredTestCase.timeout && this.config?.timeout_ms) {
-            configuredTestCase.timeout = this.config.timeout_ms;
+    }
+
+    applyTimeoutConfiguration(testCase) {
+        // Apply timeout from configuration
+        if (!testCase.timeout && this.config?.timeout_ms) {
+            testCase.timeout = this.config.timeout_ms;
         }
-        
-        // Apply auth if configured
+    }
+
+    applyAuthenticationConfig(testCase) {
+        // Apply authentication if configured
         if (this.config?.auth && this.config.auth.type === 'bearer' && this.config.auth.token) {
-            configuredTestCase.headers = configuredTestCase.headers || {};
-            if (!configuredTestCase.headers['Authorization']) {
-                configuredTestCase.headers['Authorization'] = `Bearer ${this.config.auth.token}`;
+            testCase.headers = testCase.headers || {};
+            if (!testCase.headers['Authorization']) {
+                testCase.headers['Authorization'] = `Bearer ${this.config.auth.token}`;
             }
         }
-        
+    }
+
+    parseJsonStringFields(testCase) {
         // Parse JSON string body if needed
-        if (typeof configuredTestCase.body === 'string' && configuredTestCase.body.trim().startsWith('{')) {
+        if (typeof testCase.body === 'string' && testCase.body.trim().startsWith('{')) {
             try {
-                configuredTestCase.body = JSON.parse(configuredTestCase.body);
+                testCase.body = JSON.parse(testCase.body);
             } catch (e) {
                 // Keep as string if JSON parsing fails
                 console.warn('Failed to parse body as JSON:', e);
             }
         }
-        
+
         // Parse JSON string expectedBody if needed
-        if (typeof configuredTestCase.expectedBody === 'string' && configuredTestCase.expectedBody.trim().startsWith('{')) {
+        if (typeof testCase.expectedBody === 'string' && testCase.expectedBody.trim().startsWith('{')) {
             try {
-                configuredTestCase.expectedBody = JSON.parse(configuredTestCase.expectedBody);
+                testCase.expectedBody = JSON.parse(testCase.expectedBody);
             } catch (e) {
                 // Keep as string if JSON parsing fails
                 console.warn('Failed to parse expectedBody as JSON:', e);
             }
         }
-        
-        return configuredTestCase;
     }
 
-    validateTestCase(testCase) {
+    validateTestCaseStructure(testCase) {
         const hasName = (typeof testCase.name === 'string' && testCase.name.trim() !== '') || 
                        (typeof testCase.description === 'string' && testCase.description.trim() !== '');
         const hasUrl = (typeof testCase.url === 'string' && testCase.url.trim() !== '') ||
@@ -245,14 +266,14 @@ class HTTPTestClient {
 
     addTestCaseFromForm() {
         const testCase = {
-            id: this.generateId(),
+            id: this.generateUniqueId(),
             name: document.getElementById('testName').value.trim(),
             method: document.getElementById('httpMethod').value,
             url: document.getElementById('testUrl').value.trim(),
-            headers: this.parseJSON(document.getElementById('testHeaders').value) || {},
-            body: this.parseJSON(document.getElementById('testBody').value) || document.getElementById('testBody').value.trim() || null,
+            headers: this.parseJsonString(document.getElementById('testHeaders').value) || {},
+            body: this.parseJsonString(document.getElementById('testBody').value) || document.getElementById('testBody').value.trim() || null,
             expectedStatus: parseInt(document.getElementById('expectedStatus').value) || 200,
-            expectedBody: this.parseJSON(document.getElementById('expectedBody').value) || null,
+            expectedBody: this.parseJsonString(document.getElementById('expectedBody').value) || null,
             timeout: parseInt(document.getElementById('timeout').value) || 5000,
             source: 'manual'
         };
@@ -269,15 +290,15 @@ class HTTPTestClient {
             return;
         }
 
-        this.testCases.push(testCase);
-        this.clearForm();
-        this.selectTest(testCase.id); // Select the newly created test
-        this.updateDisplay();
+        this.testSuites.push(testCase);
+        this.clearTestForm();
+        this.selectTestCase(testCase.id); // Select the newly created test
+        this.updateAllDisplays();
         this.saveToLocalStorage();
         this.showNotification('Test case added successfully', 'success');
     }
 
-    parseJSON(str) {
+    parseJsonString(str) {
         if (!str.trim()) return null;
         try {
             return JSON.parse(str);
@@ -286,7 +307,7 @@ class HTTPTestClient {
         }
     }
 
-    clearForm() {
+    clearTestForm() {
         document.getElementById('testName').value = '';
         document.getElementById('testUrl').value = '';
         document.getElementById('testHeaders').value = '';
@@ -298,12 +319,12 @@ class HTTPTestClient {
     }
 
     cancelTestCaseForm() {
-        this.clearForm();
-        this.switchTab('details');
+        this.clearTestForm();
+        this.switchToTab('details');
     }
 
-    async runAllTests() {
-        if (!this.testCases.length) {
+    async runAllTestSuites() {
+        if (!this.testSuites.length) {
             this.showNotification('No test cases to run', 'info');
             return;
         }
@@ -316,15 +337,15 @@ class HTTPTestClient {
         runButton.innerHTML = '<div class="loading"></div> Running Tests...';
         runButton.disabled = true;
 
-        let successCount = 0;
-        let failureCount = 0;
+        let passedTests = 0;
+        let failedTests = 0;
 
-        for (const testCase of this.testCases) {
+        for (const testCase of this.testSuites) {
             try {
                 const result = await this.runSingleTest(testCase);
                 this.testResults.push(result);
-                if (result.success) successCount++;
-                else failureCount++;
+                if (result.success) passedTests++;
+                else failedTests++;
                 this.updateResultsDisplay();
             } catch (error) {
                 const errorResult = {
@@ -335,7 +356,7 @@ class HTTPTestClient {
                     timestamp: new Date().toISOString()
                 };
                 this.testResults.push(errorResult);
-                failureCount++;
+                failedTests++;
                 this.updateResultsDisplay();
             }
         }
@@ -344,12 +365,12 @@ class HTTPTestClient {
         runButton.disabled = false;
 
         this.showNotification(
-            `Tests completed: ${successCount} passed, ${failureCount} failed`,
-            successCount === this.testCases.length ? 'success' : 'info'
+            `Tests completed: ${passedTests} passed, ${failedTests} failed`,
+            passedTests === this.testSuites.length ? 'success' : 'info'
         );
     }
 
-    async runSingleTest(testCase) {
+    async executeSingleTest(testCase) {
         const startTime = Date.now();
         
         try {
@@ -423,26 +444,26 @@ class HTTPTestClient {
         }
     }
 
-    updateDisplay() {
-        this.updateSidebar();
-        this.updateMainPanel();
-        this.updateTestCount();
+    updateAllDisplays() {
+        this.updateSidebarDisplay();
+        this.updateMainPanelDisplay();
+        this.updateTestCountDisplay();
     }
 
-    updateTestCount() {
+    updateTestCountDisplay() {
         const fileStatus = document.getElementById('fileStatus');
-        if (this.testCases && this.testCases.length > 0) {
-            fileStatus.textContent = `Total: ${this.testCases.length} Test${this.testCases.length !== 1 ? 's' : ''}`;
+        if (this.testSuites && this.testSuites.length > 0) {
+            fileStatus.textContent = `Total: ${this.testSuites.length} Test${this.testSuites.length !== 1 ? 's' : ''}`;
             fileStatus.style.display = 'inline';
         } else {
             fileStatus.style.display = 'none';
         }
     }
 
-    updateSidebar() {
+    updateSidebarDisplay() {
         const container = document.getElementById('testCasesSidebar');
         
-        if (!this.testCases || !this.testCases.length) {
+        if (!this.testSuites || !this.testSuites.length) {
             container.innerHTML = `
                 <div class="sidebar-empty-state">
                     <h4>No Test Cases</h4>
@@ -452,7 +473,7 @@ class HTTPTestClient {
             return;
         }
 
-        const groupedByFile = this.testCases.reduce((acc, testCase) => {
+        const groupedByFile = this.testSuites.reduce((acc, testCase) => {
             if (!testCase || typeof testCase !== 'object') {
                 console.error("Invalid item in testCases array:", testCase);
                 return acc;
@@ -475,7 +496,7 @@ class HTTPTestClient {
                     <div class="sidebar-group-header" data-filename="${filename}">
                         <span class="collapse-icon">${isCollapsed ? '▶' : '▼'}</span>
                         <span class="group-filename">${this.escapeHtml(filename)}</span>
-                        <span class="group-count">${tests.length}</span>
+                        <span class="badge group-count">${tests.length}</span>
                     </div>
                     <div class="sidebar-group-content ${isCollapsed ? 'collapsed' : ''}">
             `;
@@ -506,14 +527,14 @@ class HTTPTestClient {
                                 <span class="test-case-id">${idPart}:</span> ${this.escapeHtml(name)}
                             </div>
                             <div class="sidebar-test-meta">
-                                <span class="test-case-method method-${method}">${method}</span>
+                                <span class="badge test-case-method method-${method}">${method}</span>
                                 <span class="sidebar-test-endpoint" title="${this.escapeHtml(testCase.url || '')}">
                                     ${this.escapeHtml(endpoint)}
                                 </span>
                             </div>
                         </div>
                         <div class="sidebar-test-actions">
-                            <button class="sidebar-run-btn btn-sm" onclick="event.stopPropagation(); testClient.runSingleTestById('${testCase.id}')">▶</button>
+                            <button class="sidebar-run-btn" onclick="event.stopPropagation(); testClientApp.runSingleTestById('${testCase.id}')">▶</button>
                         </div>
                     </div>
                 `;
@@ -528,9 +549,9 @@ class HTTPTestClient {
         container.innerHTML = html;
     }
 
-    updateMainPanel() {
+    updateMainPanelDisplay() {
         if (this.selectedTestId) {
-            this.showTestDetails();
+            this.showTestCaseDetails();
         } else {
             this.showWelcomeMessage();
         }
@@ -544,8 +565,8 @@ class HTTPTestClient {
         }
     }
 
-    showTestDetails() {
-        const testCase = this.testCases.find(tc => tc.id === this.selectedTestId);
+    showTestCaseDetails() {
+        const testCase = this.testSuites.find(tc => tc.id === this.selectedTestId);
         if (!testCase) return;
 
         const welcomeMessage = document.getElementById('welcomeMessage');
@@ -558,7 +579,7 @@ class HTTPTestClient {
         if (nameElement) nameElement.textContent = testCase.name;
 
         // Update request details
-        this.updateRequestDetails(testCase);
+        this.updateRequestDetailsDisplay(testCase);
 
         // Update test results if available
         const testResult = this.testResults.find(r => r.id === testCase.id);
@@ -569,11 +590,11 @@ class HTTPTestClient {
         }
     }
 
-    updateRequestDetails(testCase) {
+    updateRequestDetailsDisplay(testCase) {
         const container = document.getElementById('requestDetails');
         container.innerHTML = `
             <div class="info-item-inline">
-                <span class="test-case-method method-${testCase.method}">${testCase.method}</span>
+                <span class="badge test-case-method method-${testCase.method}">${testCase.method}</span>
                 <span class="url-display">${this.escapeHtml(testCase.url)}</span>
             </div>
             
@@ -607,22 +628,23 @@ class HTTPTestClient {
         document.getElementById('testResultContent').innerHTML = this.renderTestResult(result);
     }
 
-    selectTest(id) {
+    selectTestCase(id) {
         this.selectedTestId = id;
-        this.updateDisplay();
+        this.updateAllDisplays();
         // Switch to details tab when selecting a test
-        this.switchTab('details');
+        this.switchToTab('details');
     }
 
     toggleFileGroup(filename) {
+        // Toggle the collapsed state
         this.collapsedFileGroups[filename] = !this.collapsedFileGroups[filename];
-        this.updateSidebar();
+        this.updateSidebarDisplay();
         this.saveToLocalStorage();
     }
 
-    switchTab(tabName) {
+    switchToTab(tabName) {
         // Update tab buttons
-        document.querySelectorAll('.tab-btn').forEach(btn => {
+        document.querySelectorAll('button[data-tab]').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tab === tabName);
         });
 
@@ -632,7 +654,7 @@ class HTTPTestClient {
         });
 
         // Update main panel content based on current state
-        this.updateMainPanel();
+        this.updateMainPanelDisplay();
     }
 
     filterTests(searchTerm) {
@@ -652,9 +674,9 @@ class HTTPTestClient {
 
     deleteSelectedTest() {
         if (this.selectedTestId) {
-            this.deleteTestCase(this.selectedTestId);
+            this.removeTestCase(this.selectedTestId);
             this.selectedTestId = null;
-            this.updateDisplay();
+            this.updateAllDisplays();
         }
     }
 
@@ -663,14 +685,14 @@ class HTTPTestClient {
         const statusText = result.success ? 'PASSED' : 'FAILED';
         
         // Get the test case to show expected body
-        const testCase = this.testCases.find(tc => tc.id === result.id);
+        const testCase = this.testSuites.find(tc => tc.id === result.id);
         
         return `
             <div class="info-section ${statusClass}">
                 <h4>Test Results</h4>
                 <div class="info-content">
                     <div class="info-item-inline">
-                        <span class="test-status-badge ${statusClass}">${statusText}</span>
+                        <span class="badge test-status-badge ${statusClass}">${statusText}</span>
                         <span class="url-display">Test completed ${result.timestamp ? new Date(result.timestamp).toLocaleString() : ''}</span>
                     </div>
                     
@@ -692,19 +714,19 @@ class HTTPTestClient {
 
     updateResultsDisplay() {
         // Update the sidebar to show status badges
-        this.updateSidebar();
+        this.updateSidebarDisplay();
         // Update main panel if a test is selected
         if (this.selectedTestId) {
-            this.updateMainPanel();
+            this.updateMainPanelDisplay();
         }
     }
 
     async runSingleTestById(id) {
-        const testCase = this.testCases.find(tc => tc.id === id);
+        const testCase = this.testSuites.find(tc => tc.id === id);
         if (!testCase) return;
 
         try {
-            const result = await this.runSingleTest(testCase);
+            const result = await this.executeSingleTest(testCase);
             
             // Update or add result
             const existingIndex = this.testResults.findIndex(r => r.id === id);
@@ -715,7 +737,7 @@ class HTTPTestClient {
             }
             
             // Select the test to show details and results
-            this.selectTest(id);
+            this.selectTestCase(id);
             
             // Update displays
             this.updateResultsDisplay();
@@ -729,8 +751,8 @@ class HTTPTestClient {
         }
     }
 
-    deleteTestCase(id) {
-        this.testCases = this.testCases.filter(tc => tc.id !== id);
+    removeTestCase(id) {
+        this.testSuites = this.testSuites.filter(tc => tc.id !== id);
         this.testResults = this.testResults.filter(tr => tr.id !== id);
         
         // Clear selection if the selected test was deleted
@@ -738,21 +760,21 @@ class HTTPTestClient {
             this.selectedTestId = null;
         }
         
-        this.updateDisplay();
+        this.updateAllDisplays();
         this.saveToLocalStorage();
         this.showNotification('Test case deleted', 'info');
     }
 
-    clearAllTests() {
-        if (this.testCases.length === 0) {
+    clearAllTestSuites() {
+        if (this.testSuites.length === 0) {
             this.showNotification('No test cases to clear', 'info');
             return;
         }
         
-        this.testCases = [];
+        this.testSuites = [];
         this.testResults = [];
         this.selectedTestId = null; // Clear selection
-        this.updateDisplay();
+        this.updateAllDisplays();
         this.saveToLocalStorage();
         this.showNotification('All test cases cleared', 'info');
         document.getElementById('fileStatus').textContent = '';
@@ -769,7 +791,7 @@ class HTTPTestClient {
         this.showNotification('All results cleared', 'info');
     }
 
-    generateId() {
+    generateUniqueId() {
         return 'test_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
     }
 
@@ -792,8 +814,8 @@ class HTTPTestClient {
 
     saveToLocalStorage() {
         try {
-            localStorage.setItem('httpTestClient_testCases', JSON.stringify(this.testCases));
-            localStorage.setItem('httpTestClient_collapsedGroups', JSON.stringify(this.collapsedFileGroups));
+            localStorage.setItem('httpTestClientApp_testSuites', JSON.stringify(this.testSuites));
+            localStorage.setItem('httpTestClientApp_collapsedGroups', JSON.stringify(this.collapsedFileGroups));
         } catch (error) {
             console.error('Error saving to localStorage:', error);
         }
@@ -801,17 +823,17 @@ class HTTPTestClient {
 
     loadFromLocalStorage() {
         try {
-            const saved = localStorage.getItem('httpTestClient_testCases');
+            const saved = localStorage.getItem('httpTestClientApp_testSuites');
             if (saved) {
-                this.testCases = JSON.parse(saved);
+                this.testSuites = JSON.parse(saved);
             }
-            const savedGroups = localStorage.getItem('httpTestClient_collapsedGroups');
+            const savedGroups = localStorage.getItem('httpTestClientApp_collapsedGroups');
             if (savedGroups) {
                 this.collapsedFileGroups = JSON.parse(savedGroups);
             }
         } catch (error) {
             console.error('Error loading from localStorage:', error);
-            this.testCases = [];
+            this.testSuites = [];
             this.collapsedFileGroups = {};
         }
     }
@@ -825,12 +847,12 @@ class HTTPTestClient {
     }
 }
 
-// Initialize the application
-let testClient;
+// Initialize the HTTP Test Client Application
+let testClientApp;
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        testClient = new HTTPTestClient();
+        testClientApp = new HTTPTestClientApp();
     });
 } else {
-    testClient = new HTTPTestClient();
+    testClientApp = new HTTPTestClientApp();
 }
