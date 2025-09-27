@@ -1,0 +1,70 @@
+{
+    "config": {
+        "base_url": "http://localhost:8080",
+        "timeout_ms": 30000,
+        "max_retries": 3,
+        "ssl_verify": false,
+        "follow_redirects": false,
+        "default_headers": {
+            "User-Agent": "HTTP-Test-Client/1.0",
+            "Accept": "application/json"
+        },
+        "auth": {
+            "type": "bearer",
+            "token": "your-auth-token-here"
+        },
+        "environment": {
+            "test_env": "development",
+            "api_version": "v1"
+        }
+    },
+    "test_cases": [
+        {
+            "id": "TC001",
+            "description": "Test GET request to retrieve user data",
+            "method": "GET",
+            "endpoint": "/api/users/123",
+            "headers": [["Authorization", "Bearer token123"]],
+            "expected_status": 200,
+            "expected_body": { "id": 123, "name": "John Doe", "email": "john@example.com" }
+        },
+        {
+            "id": "TC002",
+            "description": "Test POST request to create new user",
+            "method": "POST",
+            "endpoint": "/api/users",
+            "headers": [["Content-Type", "application/json"]],
+            "body": "{ \"name\": \"Jane Smith\", \"email\": \"jane@example.com\" }",
+            "expected_status": 201,
+            "expected_body": { "id": 124, "name": "Jane Smith", "email": "jane@example.com" }
+        },
+        {
+            "id": "TC003",
+            "description": "Test PUT request to update user data",
+            "method": "PUT",
+            "endpoint": "/api/users/123",
+            "headers": [["Content-Type", "application/json"], ["Authorization", "Bearer token123"]],
+            "body": "{ \"name\": \"John Updated\", \"email\": \"john.updated@example.com\" }",
+            "expected_status": 200,
+            "expected_body": { "id": 123, "name": "John Updated", "email": "john.updated@example.com" }
+        },
+        {
+            "id": "TC004",
+            "description": "Test DELETE request to remove user",
+            "method": "DELETE",
+            "endpoint": "/api/users/123",
+            "headers": [["Authorization", "Bearer token123"]],
+            "expected_status": 204
+        },
+        {
+            "id": "TC005",
+            "description": "Test PATCH request to partially update user",
+            "method": "PATCH",
+            "endpoint": "/api/users/123",
+            "headers": [["Content-Type", "application/json"], ["Authorization", "Bearer token123"]],
+            "body": "{ \"email\": \"john.newemail@example.com\" }",
+            "expected_status": 200,
+            "expected_body": { "id": 123, "name": "John Doe", "email": "john.newemail@example.com" }
+        }
+    ]
+}

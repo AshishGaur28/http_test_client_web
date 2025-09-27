@@ -40,7 +40,7 @@ A modern, interactive web-based HTTP API testing tool with a clean, professional
    - **Request Body**: JSON or text body for POST/PUT requests (optional)
    - **Expected Status**: Expected HTTP status code (default: 200)
    - **Timeout**: Request timeout in milliseconds (default: 5000)
-2. Click "Add Test Case"
+2. Click "Add Test"
 
 ### Running Tests
 

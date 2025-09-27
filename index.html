@@ -8,92 +8,141 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <h1><i class="icon">🚀</i> HTTP API Test Client</h1>
-            <p class="subtitle">Load, execute, and manage your API test cases with ease</p>
-        </header>
-
-        <div class="main-content">
-            <!-- Test Case Management Section -->
-            <div class="section">
-                <h2>Test Case Management</h2>
-                <div class="test-case-controls">
-                    <div class="upload-section">
+    <div class="app-container">
+        <div class="app-layout">
+            <!-- Left Sidebar - Test Cases Browser -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-main-actions">
                         <label for="fileInput" class="file-upload-btn">
-                            📁 Load JSON Test Cases
+                            Load
                         </label>
                         <input type="file" id="fileInput" accept=".json" multiple style="display: none;">
-                        <span id="fileStatus" class="file-status"></span>
-                    </div>
-                    <button id="clearTests" class="btn btn-secondary">Clear All Tests</button>
-                </div>
-                
-                <div id="testCasesList" class="test-cases-list"></div>
-            </div>
-
-            <!-- Manual Test Case Creation -->
-            <div class="section">
-                <h2>Create New Test Case</h2>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="testName">Test Name:</label>
-                        <input type="text" id="testName" placeholder="Enter test case name">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="httpMethod">HTTP Method:</label>
-                        <select id="httpMethod">
-                            <option value="GET">GET</option>
-                            <option value="POST">POST</option>
-                            <option value="PUT">PUT</option>
-                            <option value="DELETE">DELETE</option>
-                            <option value="PATCH">PATCH</option>
-                            <option value="HEAD">HEAD</option>
-                            <option value="OPTIONS">OPTIONS</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group full-width">
-                        <label for="testUrl">URL:</label>
-                        <input type="url" id="testUrl" placeholder="https://api.example.com/endpoint">
-                    </div>
-                    
-                    <div class="form-group full-width">
-                        <label for="testHeaders">Headers (JSON format):</label>
-                        <textarea id="testHeaders" rows="3" placeholder='{"Content-Type": "application/json", "Authorization": "Bearer token"}'></textarea>
-                    </div>
-                    
-                    <div class="form-group full-width">
-                        <label for="testBody">Request Body:</label>
-                        <textarea id="testBody" rows="5" placeholder='{"key": "value"}'></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="expectedStatus">Expected Status:</label>
-                        <input type="number" id="expectedStatus" placeholder="200" min="100" max="599">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="timeout">Timeout (ms):</label>
-                        <input type="number" id="timeout" placeholder="5000" min="1000" max="60000">
+                        <button id="runAllTests" class="btn btn-success">Run All</button>
+                        <button id="clearTests" class="btn btn-danger">Clear</button>
                     </div>
                 </div>
                 
-                <button id="addTestCase" class="btn btn-primary">Add Test Case</button>
+                <div class="sidebar-scrollable-content">
+                    <div class="sidebar-controls">
+                        <input type="text" id="searchTests" placeholder="🔍 Search test cases..." class="search-input">
+                        <div class="sidebar-actions-row">
+                            <div class="sidebar-create-container">
+                                <button class="tab-btn" data-tab="create">+ Create New Test</button>
+                            </div>
+                            <div class="sidebar-status-container">
+                                <span id="fileStatus" class="file-status"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="sidebar-separator">
+                    
+                    <div id="testCasesSidebar" class="test-cases-sidebar"></div>
+                </div>
             </div>
 
-            <!-- Test Execution Controls -->
-            <div class="section controls-section">
-                <h2>Test Execution</h2>
-                <div class="results-controls">
-                    <button id="runAllTests" class="btn btn-success">🏃 Run All Tests</button>
-                    <button id="clearResults" class="btn btn-secondary">Clear Results</button>
-                    <div class="results-summary">
-                        <span id="resultsSummary"></span>
+            <!-- Right Main Content -->
+            <div class="main-panel">
+                <header class="app-header">
+                    <h1>HTTP API Test Client</h1>
+                    <p class="subtitle">Load, execute, and manage your API test cases with ease</p>
+                </header>
+                
+                <!-- Test Details Tab -->
+                <div class="tab-content active" id="details-tab">
+                    <div class="welcome-message" id="welcomeMessage">
+                        <div class="welcome-content">
+                            <h3>Welcome to HTTP API Test Client</h3>
+                            <p>Select a test case from the left panel to view its details and results.</p>
+                            <p>Or load test cases using the Load button in the sidebar.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="test-details-panel" id="testDetailsPanel" style="display: none;">
+                        <div class="test-header">
+                            <h3 id="selectedTestName"></h3>
+                            <div class="test-actions">
+                                <button id="runSelectedTest" class="btn btn-success">Run</button>
+                                <button id="deleteSelectedTest" class="btn btn-danger">Delete</button>
+                            </div>
+                        </div>
+                        
+                        <div class="test-details-content">
+                            <div class="test-results-section" id="testResultsSection" style="display: none;">
+                                <div id="testResultContent"></div>
+                            </div>
+                            
+                            <div class="test-info-grid">
+                                <div class="info-section">
+                                    <h4>Request Details</h4>
+                                    <div class="info-content" id="requestDetails"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div id="testResults" class="test-results" style="display: none;"></div>
+
+                <!-- Create New Test Tab -->
+                <div class="tab-content" id="create-tab">
+                    <div class="create-test-form">
+                        <h3>Create New Test Case</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="testName">Test Name:</label>
+                                <input type="text" id="testName" placeholder="Enter test case name">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="httpMethod">HTTP Method:</label>
+                                <select id="httpMethod">
+                                    <option value="GET">GET</option>
+                                    <option value="POST">POST</option>
+                                    <option value="PUT">PUT</option>
+                                    <option value="DELETE">DELETE</option>
+                                    <option value="PATCH">PATCH</option>
+                                    <option value="HEAD">HEAD</option>
+                                    <option value="OPTIONS">OPTIONS</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group full-width">
+                                <label for="testUrl">URL:</label>
+                                <input type="url" id="testUrl" placeholder="https://api.example.com/endpoint">
+                            </div>
+                            
+                            <div class="form-group full-width">
+                                <label for="testHeaders">Headers (JSON format):</label>
+                                <textarea id="testHeaders" rows="3" placeholder='{"Content-Type": "application/json", "Authorization": "Bearer token"}'></textarea>
+                            </div>
+                            
+                            <div class="form-group full-width">
+                                <label for="testBody">Request Body:</label>
+                                <textarea id="testBody" rows="5" placeholder='{"key": "value"}'></textarea>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label for="expectedBody">Expected Body (JSON format):</label>
+                                <textarea id="expectedBody" rows="5" placeholder='{"success": true, "data": []}'></textarea>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="expectedStatus">Expected Status:</label>
+                                <input type="number" id="expectedStatus" placeholder="200" min="100" max="599">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="timeout">Timeout (ms):</label>
+                                <input type="number" id="timeout" placeholder="5000" min="1000" max="60000">
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button id="addTestCase" class="btn btn-success">Add Test Case</button>
+                            <button id="cancelTestCase" class="btn btn-secondary">Cancel</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

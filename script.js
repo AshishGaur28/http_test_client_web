@@ -2,6 +2,8 @@ class HTTPTestClient {
     constructor() {
         this.testCases = [];
         this.testResults = [];
+        this.selectedTestId = null;
+        this.collapsedFileGroups = {};
         this.init();
     }
 
@@ -18,16 +20,42 @@ class HTTPTestClient {
         // Form submission
         document.getElementById('addTestCase').addEventListener('click', () => this.addTestCaseFromForm());
         
+        // Form cancellation
+        document.getElementById('cancelTestCase').addEventListener('click', () => this.cancelTestCaseForm());
+        
         // Test execution
         document.getElementById('runAllTests').addEventListener('click', () => this.runAllTests());
         
         // Clear functions
         document.getElementById('clearTests').addEventListener('click', () => this.clearAllTests());
-        document.getElementById('clearResults').addEventListener('click', () => this.clearResults());
 
         // Form validation on input
         document.getElementById('testUrl').addEventListener('input', this.validateForm);
         document.getElementById('testName').addEventListener('input', this.validateForm);
+
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
+        });
+
+        // Search functionality
+        document.getElementById('searchTests').addEventListener('input', (e) => this.filterTests(e.target.value));
+
+        // Selected test actions
+        document.getElementById('runSelectedTest').addEventListener('click', () => this.runSelectedTest());
+        document.getElementById('deleteSelectedTest').addEventListener('click', () => this.deleteSelectedTest());
+
+        // Event delegation for sidebar clicks
+        document.getElementById('testCasesSidebar').addEventListener('click', (e) => {
+            const testItem = e.target.closest('.sidebar-test-item');
+            const groupHeader = e.target.closest('.sidebar-group-header');
+
+            if (testItem) {
+                this.selectTest(testItem.dataset.id);
+            } else if (groupHeader) {
+                this.toggleFileGroup(groupHeader.dataset.filename);
+            }
+        });
     }
 
     async handleFileUpload(event) {
@@ -42,7 +70,24 @@ class HTTPTestClient {
                 const content = await this.readFile(file);
                 const data = JSON.parse(content);
                 
-                if (Array.isArray(data)) {
+                // Handle different JSON structures
+                if (data.test_cases && Array.isArray(data.test_cases)) {
+                    // JSON with config and test_cases structure
+                    if (data.config) {
+                        this.loadConfig(data.config);
+                    }
+                    data.test_cases.forEach(testCase => {
+                        if (this.validateTestCase(testCase)) {
+                            const configuredTestCase = this.applyConfigToTestCase(testCase);
+                            this.testCases.push({
+                                id: this.generateId(),
+                                ...configuredTestCase,
+                                source: file.name
+                            });
+                            loadedCount++;
+                        }
+                    });
+                } else if (Array.isArray(data)) {
                     // Multiple test cases in array
                     data.forEach(testCase => {
                         if (this.validateTestCase(testCase)) {
@@ -73,13 +118,20 @@ class HTTPTestClient {
         this.saveToLocalStorage();
         
         const status = document.getElementById('fileStatus');
-        if (loadedCount > 0) {
-            status.textContent = `✅ Loaded ${loadedCount} test case(s)`;
-            status.style.color = '#28a745';
-            this.showNotification(`Successfully loaded ${loadedCount} test case(s)`, 'success');
+        if (this.testCases.length > 0) {
+            status.textContent = `Total: ${this.testCases.length} Test${this.testCases.length !== 1 ? 's' : ''}`;
+            status.className = 'file-status';
+        } else {
+            status.textContent = 'No test cases loaded.';
+            status.className = 'file-status empty';
         }
+        
+        if (loadedCount > 0) {
+            this.showNotification(`${loadedCount} test case(s) loaded successfully.`, 'success');
+        }
+        
         if (errorCount > 0) {
-            this.showNotification(`Failed to load ${errorCount} file(s)`, 'error');
+            this.showNotification(`${errorCount} file(s) could not be loaded or parsed.`, 'error');
         }
 
         // Reset file input
@@ -95,13 +147,100 @@ class HTTPTestClient {
         });
     }
 
+    loadConfig(config) {
+        // Store config for later use
+        this.config = config;
+        console.log('Loaded configuration:', config);
+    }
+
+    applyConfigToTestCase(testCase) {
+        // Create a new test case with config applied
+        const configuredTestCase = { ...testCase };
+        
+        // Use description as name if name is missing
+        if (!configuredTestCase.name && configuredTestCase.description) {
+            configuredTestCase.name = configuredTestCase.description;
+        }
+        
+        // Convert endpoint to full URL using base_url
+        if (configuredTestCase.endpoint && this.config?.base_url) {
+            configuredTestCase.url = this.config.base_url + configuredTestCase.endpoint;
+            delete configuredTestCase.endpoint;
+        }
+        
+        // Convert expected_status to expectedStatus
+        if (configuredTestCase.expected_status !== undefined) {
+            configuredTestCase.expectedStatus = configuredTestCase.expected_status;
+            delete configuredTestCase.expected_status;
+        }
+        
+        // Convert expected_body to expectedBody
+        if (configuredTestCase.expected_body !== undefined) {
+            configuredTestCase.expectedBody = configuredTestCase.expected_body;
+            delete configuredTestCase.expected_body;
+        }
+        
+        // Convert headers array format to object format
+        if (Array.isArray(configuredTestCase.headers)) {
+            const headersObj = {};
+            configuredTestCase.headers.forEach(([key, value]) => {
+                headersObj[key] = value;
+            });
+            configuredTestCase.headers = headersObj;
+        }
+        
+        // Apply default headers from config
+        if (this.config?.default_headers) {
+            configuredTestCase.headers = {
+                ...this.config.default_headers,
+                ...(configuredTestCase.headers || {})
+            };
+        }
+        
+        // Apply timeout from config
+        if (!configuredTestCase.timeout && this.config?.timeout_ms) {
+            configuredTestCase.timeout = this.config.timeout_ms;
+        }
+        
+        // Apply auth if configured
+        if (this.config?.auth && this.config.auth.type === 'bearer' && this.config.auth.token) {
+            configuredTestCase.headers = configuredTestCase.headers || {};
+            if (!configuredTestCase.headers['Authorization']) {
+                configuredTestCase.headers['Authorization'] = `Bearer ${this.config.auth.token}`;
+            }
+        }
+        
+        // Parse JSON string body if needed
+        if (typeof configuredTestCase.body === 'string' && configuredTestCase.body.trim().startsWith('{')) {
+            try {
+                configuredTestCase.body = JSON.parse(configuredTestCase.body);
+            } catch (e) {
+                // Keep as string if JSON parsing fails
+                console.warn('Failed to parse body as JSON:', e);
+            }
+        }
+        
+        // Parse JSON string expectedBody if needed
+        if (typeof configuredTestCase.expectedBody === 'string' && configuredTestCase.expectedBody.trim().startsWith('{')) {
+            try {
+                configuredTestCase.expectedBody = JSON.parse(configuredTestCase.expectedBody);
+            } catch (e) {
+                // Keep as string if JSON parsing fails
+                console.warn('Failed to parse expectedBody as JSON:', e);
+            }
+        }
+        
+        return configuredTestCase;
+    }
+
     validateTestCase(testCase) {
-        return testCase && 
-               typeof testCase.name === 'string' &&
-               typeof testCase.url === 'string' &&
-               typeof testCase.method === 'string' &&
-               testCase.name.trim() !== '' &&
-               testCase.url.trim() !== '';
+        const hasName = (typeof testCase.name === 'string' && testCase.name.trim() !== '') || 
+                       (typeof testCase.description === 'string' && testCase.description.trim() !== '');
+        const hasUrl = (typeof testCase.url === 'string' && testCase.url.trim() !== '') ||
+                      (typeof testCase.endpoint === 'string' && testCase.endpoint.trim() !== '');
+        const hasMethod = typeof testCase.method === 'string' && testCase.method.trim() !== '';
+        
+        return testCase && hasName && hasUrl && hasMethod;
     }
 
     addTestCaseFromForm() {
@@ -111,8 +250,9 @@ class HTTPTestClient {
             method: document.getElementById('httpMethod').value,
             url: document.getElementById('testUrl').value.trim(),
             headers: this.parseJSON(document.getElementById('testHeaders').value) || {},
-            body: document.getElementById('testBody').value.trim() || null,
+            body: this.parseJSON(document.getElementById('testBody').value) || document.getElementById('testBody').value.trim() || null,
             expectedStatus: parseInt(document.getElementById('expectedStatus').value) || 200,
+            expectedBody: this.parseJSON(document.getElementById('expectedBody').value) || null,
             timeout: parseInt(document.getElementById('timeout').value) || 5000,
             source: 'manual'
         };
@@ -131,6 +271,7 @@ class HTTPTestClient {
 
         this.testCases.push(testCase);
         this.clearForm();
+        this.selectTest(testCase.id); // Select the newly created test
         this.updateDisplay();
         this.saveToLocalStorage();
         this.showNotification('Test case added successfully', 'success');
@@ -150,9 +291,15 @@ class HTTPTestClient {
         document.getElementById('testUrl').value = '';
         document.getElementById('testHeaders').value = '';
         document.getElementById('testBody').value = '';
+        document.getElementById('expectedBody').value = '';
         document.getElementById('expectedStatus').value = '';
         document.getElementById('timeout').value = '';
         document.getElementById('httpMethod').selectedIndex = 0;
+    }
+
+    cancelTestCaseForm() {
+        this.clearForm();
+        this.switchTab('details');
     }
 
     async runAllTests() {
@@ -162,7 +309,7 @@ class HTTPTestClient {
         }
 
         this.testResults = [];
-        this.updateDisplay(); // Refresh to show cleared results
+        this.updateResultsDisplay();
         
         const runButton = document.getElementById('runAllTests');
         const originalText = runButton.textContent;
@@ -178,26 +325,18 @@ class HTTPTestClient {
                 this.testResults.push(result);
                 if (result.success) successCount++;
                 else failureCount++;
-                this.updateDisplay(); // Refresh after each test completes
-                
-                // Re-highlight code syntax
-                if (window.Prism) {
-                    Prism.highlightAll();
-                }
+                this.updateResultsDisplay();
             } catch (error) {
                 const errorResult = {
                     id: testCase.id,
                     testName: testCase.name,
                     success: false,
                     error: error.message,
-                    timestamp: new Date().toISOString(),
-                    responseTime: 0,
-                    url: testCase.url,
-                    method: testCase.method
+                    timestamp: new Date().toISOString()
                 };
                 this.testResults.push(errorResult);
                 failureCount++;
-                this.updateDisplay(); // Refresh after error
+                this.updateResultsDisplay();
             }
         }
 
@@ -285,192 +424,279 @@ class HTTPTestClient {
     }
 
     updateDisplay() {
-        this.updateTestCasesList();
-        this.updateResultsDisplay();
+        this.updateSidebar();
+        this.updateMainPanel();
+        this.updateTestCount();
     }
 
-    toggleTestCaseExpanded(id) {
-        const testCaseItem = document.querySelector(`.test-case-item[data-id="${id}"]`);
-        if (!testCaseItem) return;
-
-        const expandedContent = testCaseItem.querySelector('.test-case-expanded-content');
-        const expandIcon = testCaseItem.querySelector('.expand-icon');
-        
-        if (expandedContent.style.display === 'none') {
-            expandedContent.style.display = 'block';
-            expandIcon.textContent = '▲';
-            testCaseItem.classList.add('expanded');
+    updateTestCount() {
+        const fileStatus = document.getElementById('fileStatus');
+        if (this.testCases && this.testCases.length > 0) {
+            fileStatus.textContent = `Total: ${this.testCases.length} Test${this.testCases.length !== 1 ? 's' : ''}`;
+            fileStatus.style.display = 'inline';
         } else {
-            expandedContent.style.display = 'none';
-            expandIcon.textContent = '▼';
-            testCaseItem.classList.remove('expanded');
+            fileStatus.style.display = 'none';
         }
     }
 
-    renderTestCaseExpandedContent(testCase, result) {
-        if (result) {
-            // Show test results
-            const statusClass = result.success ? 'success' : 'failure';
-            const statusText = result.success ? 'PASSED' : 'FAILED';
-            
-            return `
-                <div class="inline-test-result">
-                    <div class="inline-result-header">
-                        <h4>Test Result</h4>
-                        <span class="result-status status-${statusClass}">${statusText}</span>
-                    </div>
-                    <div class="inline-result-sections">
-                        <div class="inline-result-section">
-                            <h5>Request Details</h5>
-                            <div><strong>Method:</strong> ${result.method}</div>
-                            <div><strong>URL:</strong> ${this.escapeHtml(result.url)}</div>
-                            <div><strong>Response Time:</strong> ${result.responseTime}ms</div>
-                            <div><strong>Timestamp:</strong> ${new Date(result.timestamp).toLocaleString()}</div>
-                        </div>
-                        
-                        ${result.status ? `
-                            <div class="inline-result-section">
-                                <h5>Response Status</h5>
-                                <div><strong>Actual:</strong> ${result.status}</div>
-                                <div><strong>Expected:</strong> ${result.expectedStatus || 'Not specified'}</div>
-                            </div>
-                        ` : ''}
-                        
-                        ${result.error ? `
-                            <div class="inline-result-section">
-                                <h5>Error</h5>
-                                <div class="error-message">${this.escapeHtml(result.error)}</div>
-                            </div>
-                        ` : ''}
-                        
-                        ${result.headers && Object.keys(result.headers).length > 0 ? `
-                            <div class="inline-result-section">
-                                <h5>Response Headers</h5>
-                                <div class="response-body">
-                                    <pre><code class="language-json">${this.escapeHtml(JSON.stringify(result.headers, null, 2))}</code></pre>
-                                </div>
-                            </div>
-                        ` : ''}
-                        
-                        ${result.body ? `
-                            <div class="inline-result-section">
-                                <h5>Response Body</h5>
-                                <div class="response-body">
-                                    <pre><code class="language-json">${this.escapeHtml(typeof result.body === 'object' ? JSON.stringify(result.body, null, 2) : result.body)}</code></pre>
-                                </div>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
-        } else {
-            // Show test configuration
-            return `
-                <div class="inline-test-config">
-                    <div class="inline-config-header">
-                        <h4>Test Configuration</h4>
-                    </div>
-                    <div class="inline-config-sections">
-                        <div class="inline-config-section">
-                            <h5>Request Details</h5>
-                            <div><strong>Method:</strong> ${testCase.method}</div>
-                            <div><strong>URL:</strong> ${this.escapeHtml(testCase.url)}</div>
-                            ${testCase.expectedStatus ? `<div><strong>Expected Status:</strong> ${testCase.expectedStatus}</div>` : ''}
-                            ${testCase.timeout ? `<div><strong>Timeout:</strong> ${testCase.timeout}ms</div>` : ''}
-                            <div><strong>Source:</strong> ${this.escapeHtml(testCase.source)}</div>
-                        </div>
-                        
-                        ${testCase.headers && Object.keys(testCase.headers).length > 0 ? `
-                            <div class="inline-config-section">
-                                <h5>Request Headers</h5>
-                                <div class="response-body">
-                                    <pre><code class="language-json">${this.escapeHtml(JSON.stringify(testCase.headers, null, 2))}</code></pre>
-                                </div>
-                            </div>
-                        ` : ''}
-                        
-                        ${testCase.body ? `
-                            <div class="inline-config-section">
-                                <h5>Request Body</h5>
-                                <div class="response-body">
-                                    <pre><code class="language-json">${this.escapeHtml(typeof testCase.body === 'object' ? JSON.stringify(testCase.body, null, 2) : testCase.body)}</code></pre>
-                                </div>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    updateTestCasesList() {
-        const container = document.getElementById('testCasesList');
+    updateSidebar() {
+        const container = document.getElementById('testCasesSidebar');
         
-        if (!this.testCases.length) {
-            container.innerHTML = '<div class="empty-state">No test cases loaded. Upload JSON files or create test cases manually.</div>';
+        if (!this.testCases || !this.testCases.length) {
+            container.innerHTML = `
+                <div class="sidebar-empty-state">
+                    <h4>No Test Cases</h4>
+                    <p>Load JSON files or create test cases manually to get started.</p>
+                </div>
+            `;
             return;
         }
 
-        container.innerHTML = this.testCases.map(testCase => {
-            const result = this.testResults.find(r => r.id === testCase.id);
-            const hasResult = !!result;
-            const statusClass = hasResult ? (result.success ? 'success' : 'failure') : 'pending';
-            const statusIcon = hasResult ? (result.success ? '✅' : '❌') : '⏸️';
+        const groupedByFile = this.testCases.reduce((acc, testCase) => {
+            if (!testCase || typeof testCase !== 'object') {
+                console.error("Invalid item in testCases array:", testCase);
+                return acc;
+            }
+            const source = testCase.source || 'manual';
+            if (!acc[source]) {
+                acc[source] = [];
+            }
+            acc[source].push(testCase);
+            return acc;
+        }, {});
+
+        let html = '';
+        for (const filename in groupedByFile) {
+            const isCollapsed = this.collapsedFileGroups[filename];
+            const tests = groupedByFile[filename];
             
-            return `
-            <div class="test-case-item test-case-${statusClass}" data-id="${testCase.id}">
-                <div class="test-case-header" onclick="testClient.toggleTestCaseExpanded('${testCase.id}')">
-                    <div class="test-case-header-left">
-                        <div class="test-case-status-icon">${statusIcon}</div>
-                        <div class="test-case-title">${this.escapeHtml(testCase.name)}</div>
+            html += `
+                <div class="sidebar-group">
+                    <div class="sidebar-group-header" data-filename="${filename}">
+                        <span class="collapse-icon">${isCollapsed ? '▶' : '▼'}</span>
+                        <span class="group-filename">${this.escapeHtml(filename)}</span>
+                        <span class="group-count">${tests.length}</span>
                     </div>
-                    <div class="test-case-header-right">
-                        <span class="test-case-method method-${testCase.method}">${testCase.method}</span>
-                        <div class="expand-icon">▼</div>
+                    <div class="sidebar-group-content ${isCollapsed ? 'collapsed' : ''}">
+            `;
+
+            html += tests.map(testCase => {
+                if (!testCase || !testCase.id) {
+                    console.error('Skipping invalid test case:', testCase);
+                    return ''; // Skip rendering this invalid item
+                }
+
+                const testResult = this.testResults.find(r => r.id === testCase.id);
+                const isSelected = this.selectedTestId === testCase.id;
+
+                let statusClass = '';
+                if (testResult) {
+                    statusClass = testResult.success ? 'status-passed' : 'status-failed';
+                }
+
+                const endpoint = (testCase.url || '').replace(/^(?:\/\/|[^/]+)*\//, "/");
+                const idPart = testCase.id || 'N/A';
+                const name = testCase.name || testCase.description || 'Unnamed Test';
+                const method = testCase.method || 'N/A';
+
+                return `
+                    <div class="sidebar-test-item ${isSelected ? 'selected' : ''} ${statusClass}" data-id="${testCase.id}">
+                        <div class="sidebar-test-info">
+                            <div class="sidebar-test-name" title="${this.escapeHtml(name)}">
+                                <span class="test-case-id">${idPart}:</span> ${this.escapeHtml(name)}
+                            </div>
+                            <div class="sidebar-test-meta">
+                                <span class="test-case-method method-${method}">${method}</span>
+                                <span class="sidebar-test-endpoint" title="${this.escapeHtml(testCase.url || '')}">
+                                    ${this.escapeHtml(endpoint)}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="sidebar-test-actions">
+                            <button class="sidebar-run-btn btn-sm" onclick="event.stopPropagation(); testClient.runSingleTestById('${testCase.id}')">▶</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            html += `
                     </div>
                 </div>
-                <div class="test-case-summary">
-                    <div class="test-case-url">${this.escapeHtml(testCase.url)}</div>
-                    ${hasResult ? `<div class="test-case-result-summary">
-                        ${result.success ? `✅ Passed` : `❌ Failed`} • ${result.responseTime}ms
-                        ${result.error ? ` • ${this.escapeHtml(result.error)}` : ''}
+            `;
+        }
+
+        container.innerHTML = html;
+    }
+
+    updateMainPanel() {
+        if (this.selectedTestId) {
+            this.showTestDetails();
+        } else {
+            this.showWelcomeMessage();
+        }
+    }
+
+    showWelcomeMessage() {
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        if (welcomeMessage) {
+            welcomeMessage.style.display = 'flex';
+            document.getElementById('testDetailsPanel').style.display = 'none';
+        }
+    }
+
+    showTestDetails() {
+        const testCase = this.testCases.find(tc => tc.id === this.selectedTestId);
+        if (!testCase) return;
+
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        const testDetailsPanel = document.getElementById('testDetailsPanel');
+        if (welcomeMessage) welcomeMessage.style.display = 'none';
+        if (testDetailsPanel) testDetailsPanel.style.display = 'flex';
+
+        // Update test name
+        const nameElement = document.getElementById('selectedTestName');
+        if (nameElement) nameElement.textContent = testCase.name;
+
+        // Update request details
+        this.updateRequestDetails(testCase);
+
+        // Update test results if available
+        const testResult = this.testResults.find(r => r.id === testCase.id);
+        if (testResult) {
+            this.showTestResults(testResult);
+        } else {
+            document.getElementById('testResultsSection').style.display = 'none';
+        }
+    }
+
+    updateRequestDetails(testCase) {
+        const container = document.getElementById('requestDetails');
+        container.innerHTML = `
+            <div class="info-item-inline">
+                <span class="test-case-method method-${testCase.method}">${testCase.method}</span>
+                <span class="url-display">${this.escapeHtml(testCase.url)}</span>
+            </div>
+            
+            ${testCase.headers && Object.keys(testCase.headers).length > 0 ? `
+            <div class="info-item">
+                <strong>Headers:</strong>
+                <div class="code-block">${this.escapeHtml(JSON.stringify(testCase.headers, null, 2))}</div>
+            </div>` : ''}
+            
+            ${testCase.body ? `
+            <div class="info-item">
+                <strong>Request Body:</strong>
+                <div class="code-block">${this.escapeHtml(typeof testCase.body === 'object' ? JSON.stringify(testCase.body, null, 2) : testCase.body)}</div>
+            </div>` : ''}
+
+            ${testCase.expectedBody ? `
+            <div class="info-item">
+                <strong>Expected Response Body:</strong>
+                <div class="code-block">${this.escapeHtml(typeof testCase.expectedBody === 'object' ? JSON.stringify(testCase.expectedBody, null, 2) : testCase.expectedBody)}</div>
+            </div>` : ''}
+            
+            <div class="config-items">
+                <div class="config-item"><strong>Timeout:</strong> ${testCase.timeout || 5000}ms</div>
+                <div class="config-item"><strong>Source:</strong> ${this.escapeHtml(testCase.source)}</div>
+            </div>
+        `;
+    }
+
+    showTestResults(result) {
+        document.getElementById('testResultsSection').style.display = 'block';
+        document.getElementById('testResultContent').innerHTML = this.renderTestResult(result);
+    }
+
+    selectTest(id) {
+        this.selectedTestId = id;
+        this.updateDisplay();
+        // Switch to details tab when selecting a test
+        this.switchTab('details');
+    }
+
+    toggleFileGroup(filename) {
+        this.collapsedFileGroups[filename] = !this.collapsedFileGroups[filename];
+        this.updateSidebar();
+        this.saveToLocalStorage();
+    }
+
+    switchTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.toggle('active', content.id === `${tabName}-tab`);
+        });
+
+        // Update main panel content based on current state
+        this.updateMainPanel();
+    }
+
+    filterTests(searchTerm) {
+        const items = document.querySelectorAll('.sidebar-test-item');
+        items.forEach(item => {
+            const testName = item.querySelector('.sidebar-test-name').textContent.toLowerCase();
+            const isVisible = testName.includes(searchTerm.toLowerCase());
+            item.style.display = isVisible ? 'flex' : 'none';
+        });
+    }
+
+    runSelectedTest() {
+        if (this.selectedTestId) {
+            this.runSingleTestById(this.selectedTestId);
+        }
+    }
+
+    deleteSelectedTest() {
+        if (this.selectedTestId) {
+            this.deleteTestCase(this.selectedTestId);
+            this.selectedTestId = null;
+            this.updateDisplay();
+        }
+    }
+
+    renderTestResult(result) {
+        const statusClass = result.success ? 'status-passed' : 'status-failed';
+        const statusText = result.success ? 'PASSED' : 'FAILED';
+        
+        // Get the test case to show expected body
+        const testCase = this.testCases.find(tc => tc.id === result.id);
+        
+        return `
+            <div class="info-section ${statusClass}">
+                <h4>Test Results</h4>
+                <div class="info-content">
+                    <div class="info-item-inline">
+                        <span class="test-status-badge ${statusClass}">${statusText}</span>
+                        <span class="url-display">Test completed ${result.timestamp ? new Date(result.timestamp).toLocaleString() : ''}</span>
+                    </div>
+                    
+                    <div class="config-items">
+                        ${result.responseTime ? `<div class="config-item"><strong>Response Time:</strong> ${result.responseTime}ms</div>` : ''}
+                        ${result.status ? `<div class="config-item"><strong>Status Code:</strong> ${result.status}</div>` : ''}
+                        ${result.error ? `<div class="config-item"><strong>Error:</strong> ${this.escapeHtml(result.error)}</div>` : ''}
+                    </div>
+                    
+                    ${result.body ? `
+                    <div class="info-item">
+                        <strong>Response Body:</strong>
+                        <div class="code-block">${this.escapeHtml(typeof result.body === 'object' ? JSON.stringify(result.body, null, 2) : result.body)}</div>
                     </div>` : ''}
                 </div>
-                <div class="test-case-expanded-content" style="display: none;">
-                    ${this.renderTestCaseExpandedContent(testCase, result)}
-                </div>
-                <div class="test-case-controls">
-                    <button class="btn btn-primary" onclick="testClient.runSingleTestById('${testCase.id}')">▶️ Run Test</button>
-                    <button class="btn btn-danger" onclick="testClient.deleteTestCase('${testCase.id}')">🗑️ Delete</button>
-                </div>
             </div>
-        `}).join('');
+        `;
     }
 
     updateResultsDisplay() {
-        const container = document.getElementById('testResults');
-        const summary = document.getElementById('resultsSummary');
-
-        if (!this.testResults.length) {
-            summary.textContent = '';
-            container.style.display = 'none';
-            return;
+        // Update the sidebar to show status badges
+        this.updateSidebar();
+        // Update main panel if a test is selected
+        if (this.selectedTestId) {
+            this.updateMainPanel();
         }
-
-        const successCount = this.testResults.filter(r => r.success).length;
-        const failureCount = this.testResults.length - successCount;
-        
-        summary.innerHTML = `
-            <span style="color: #28a745;">✅ ${successCount} passed</span> | 
-            <span style="color: #dc3545;">❌ ${failureCount} failed</span> | 
-            <span>Total: ${this.testResults.length}</span>
-        `;
-
-        // Keep the traditional results section hidden since we now show results inline
-        container.style.display = 'none';
-        
-        // The detailed results are now shown inline within each test case
-        // This method now primarily handles the summary display
     }
 
     async runSingleTestById(id) {
@@ -488,14 +714,11 @@ class HTTPTestClient {
                 this.testResults.push(result);
             }
             
-            // Refresh the test cases list to show updated results
-            this.updateTestCasesList();
-            this.updateResultsDisplay();
+            // Select the test to show details and results
+            this.selectTest(id);
             
-            // Re-highlight code syntax
-            if (window.Prism) {
-                Prism.highlightAll();
-            }
+            // Update displays
+            this.updateResultsDisplay();
             
             this.showNotification(
                 `Test "${testCase.name}" ${result.success ? 'passed' : 'failed'}`,
@@ -509,6 +732,12 @@ class HTTPTestClient {
     deleteTestCase(id) {
         this.testCases = this.testCases.filter(tc => tc.id !== id);
         this.testResults = this.testResults.filter(tr => tr.id !== id);
+        
+        // Clear selection if the selected test was deleted
+        if (this.selectedTestId === id) {
+            this.selectedTestId = null;
+        }
+        
         this.updateDisplay();
         this.saveToLocalStorage();
         this.showNotification('Test case deleted', 'info');
@@ -522,6 +751,7 @@ class HTTPTestClient {
         
         this.testCases = [];
         this.testResults = [];
+        this.selectedTestId = null; // Clear selection
         this.updateDisplay();
         this.saveToLocalStorage();
         this.showNotification('All test cases cleared', 'info');
@@ -563,6 +793,7 @@ class HTTPTestClient {
     saveToLocalStorage() {
         try {
             localStorage.setItem('httpTestClient_testCases', JSON.stringify(this.testCases));
+            localStorage.setItem('httpTestClient_collapsedGroups', JSON.stringify(this.collapsedFileGroups));
         } catch (error) {
             console.error('Error saving to localStorage:', error);
         }
@@ -574,9 +805,14 @@ class HTTPTestClient {
             if (saved) {
                 this.testCases = JSON.parse(saved);
             }
+            const savedGroups = localStorage.getItem('httpTestClient_collapsedGroups');
+            if (savedGroups) {
+                this.collapsedFileGroups = JSON.parse(savedGroups);
+            }
         } catch (error) {
             console.error('Error loading from localStorage:', error);
             this.testCases = [];
+            this.collapsedFileGroups = {};
         }
     }
 
@@ -591,6 +827,10 @@ class HTTPTestClient {
 
 // Initialize the application
 let testClient;
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        testClient = new HTTPTestClient();
+    });
+} else {
     testClient = new HTTPTestClient();
-});
+}
